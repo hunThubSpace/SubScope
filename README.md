@@ -65,7 +65,7 @@ options:
 
 #### Workspaces
 ```bash
-➜  Scripts python3 subscope.py workspace -h
+➜ python3 subscope.py workspace -h
 usage: subscope.py workspace [-h] {create,list,delete} ...
 
 positional arguments:
@@ -87,6 +87,8 @@ options:
   ```bash
   python3 subscope.py workspace list [--brief]
   ```
+   - The `--brief` option print only workspaces, good for scripting and piping.
+
 
 - **Delete a workspace**:
   ```bash
@@ -126,7 +128,7 @@ options:
 
 #### Subdomains
 ```bash
-➜  Scripts python3 subscope.py subdomain -h
+➜ python3 subscope.py subdomain -h
 usage: subscope.py subdomain [-h] {add,list,delete} ...
 
 positional arguments:
@@ -162,7 +164,7 @@ options:
 
 ## Sample output
 ```bash
-➜  Scripts python3 subscope.py subdomain list tesla.com wk_tesla --source subfinder --status inscope
+➜ python3 subscope.py subdomain list tesla.com wk_tesla --source subfinder --status inscope
 [
   {
     "subdomain": "[REDACT].tesla.com",
