@@ -161,7 +161,7 @@ python3 subscope.py <command> <subcommand> [options]
     python3 subscope.py subdomain add subs.txt tesla.com tesla_wk --source crtsh manual --scope inscope --resolved yes
 
     [+] Subdomain 'www.tesla.com' added to domain 'tesla.com' in workspace 'tesla_wk' with sources: crtsh, manual, scope: inscope, resolved: yes
-    [+]Subdomain 'mail.tesla.com' added to domain 'tesla.com' in workspace 'tesla_wk' with sources: crtsh, manual, scope: inscope, resolved: yes
+    [+] Subdomain 'mail.tesla.com' added to domain 'tesla.com' in workspace 'tesla_wk' with sources: crtsh, manual, scope: inscope, resolved: yes
     ```
 
 - List all subdomains of `tesla.com` in `tesla_wk`:
