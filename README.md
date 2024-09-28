@@ -20,7 +20,7 @@ SubScope is a Python-based command-line tool that helps you manage domains and s
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/SubScope.git
+   git clone https://github.com/hunThubSpace/SubScope.git
    cd SubScope
    ```
 
