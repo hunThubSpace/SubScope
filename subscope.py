@@ -129,9 +129,6 @@ def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=N
     # Custom timestamp format
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Join the sources if provided, otherwise set to 'manual'
-    source_str = ", ".join(sources) if sources else "manual"
-
     # Check if the input is a file
     if os.path.isfile(subdomain_or_file):
         # Read subdomains from the file
@@ -142,22 +139,37 @@ def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=N
 
     # Process each subdomain
     for subdomain in subdomains:
-        cursor.execute("SELECT * FROM subdomains WHERE subdomain = ? AND domain = ? AND workspace_name = ?", 
+        cursor.execute("SELECT source FROM subdomains WHERE subdomain = ? AND domain = ? AND workspace_name = ?", 
                        (subdomain, domain, workspace_name))
         existing = cursor.fetchone()
 
         if existing:
-            # If the subdomain exists, check if the source, scope, or resolved has changed
+            # If the subdomain exists, get the current sources
+            current_sources = existing[0].split(", ")
+            # Create a set to avoid duplicates
+            current_sources_set = set(current_sources)
+
+            # Append new sources to the set
+            if sources:
+                new_sources = [src.strip() for src in sources]
+                current_sources_set.update(new_sources)
+
+            # Create the updated source string
+            updated_source_str = ", ".join(current_sources_set)
+
+            # Update the subdomain with the new sources
             cursor.execute("UPDATE subdomains SET source = ?, updated_at = ?, scope = ?, resolved = ? WHERE subdomain = ? AND domain = ? AND workspace_name = ?", 
-                           (source_str, timestamp, scope, resolved, subdomain, domain, workspace_name))
+                           (updated_source_str, timestamp, scope, resolved, subdomain, domain, workspace_name))
             conn.commit()
-            print(f"Updated subdomain '{subdomain}' in domain '{domain}' with sources: {source_str}, scope: {scope}, resolved: {resolved}")
+            print(f"Updated subdomain '{subdomain}' in domain '{domain}' with sources: {updated_source_str}, scope: {scope}, resolved: {resolved}")
         else:
+            # Join the sources if provided, otherwise set to 'manual'
+            new_source_str = ", ".join(sources) if sources else "manual"
             # Insert the new subdomain
             cursor.execute("INSERT INTO subdomains (subdomain, domain, workspace_name, source, scope, resolved, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
-                           (subdomain, domain, workspace_name, source_str, scope, resolved, timestamp, timestamp))
+                           (subdomain, domain, workspace_name, new_source_str, scope, resolved, timestamp, timestamp))
             conn.commit()
-            print(f"Subdomain '{subdomain}' added to domain '{domain}' in workspace '{workspace_name}' with sources: {source_str}, scope: {scope}, resolved: {resolved}")
+            print(f"Subdomain '{subdomain}' added to domain '{domain}' in workspace '{workspace_name}' with sources: {new_source_str}, scope: {scope}, resolved: {resolved}")
 
 def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=None, brief=False):
     # Base query
