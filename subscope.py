@@ -171,7 +171,7 @@ def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=N
             conn.commit()
             print(f"Subdomain '{subdomain}' added to domain '{domain}' in workspace '{workspace_name}' with sources: {new_source_str}, scope: {scope}, resolved: {resolved}")
 
-def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=None, brief=False):
+def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=None, brief=False, source_only=False):
     # Base query
     query = """
         SELECT subdomain, domain, source, scope, resolved, created_at, updated_at 
@@ -184,12 +184,6 @@ def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=N
     if domain != '*':
         query += " AND domain = ?"
         parameters.append(domain)
-
-    # Add filtering for sources
-    if sources:
-        source_conditions = " OR ".join(["source LIKE ?" for _ in sources])  # Create conditions for each source
-        query += f" AND ({source_conditions})"
-        parameters += [f"%{source}%" for source in sources]
 
     # Add filtering for scope
     if scope:
@@ -206,14 +200,35 @@ def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=N
     subdomains = cursor.fetchall()
 
     if subdomains:
-        if brief:
-            # Print only the subdomain names
-            print("\n".join(subdomain[0] for subdomain in subdomains))  
+        filtered_subdomains = []
+        
+        # If sources are provided, filter the results
+        if sources:
+            for subdomain in subdomains:
+                # Check if any source in the list is included in the subdomain source
+                subdomain_sources = [src.strip() for src in subdomain[2].split(',')]
+                if any(source in subdomain_sources for source in sources):
+                    filtered_subdomains.append(subdomain)
+
         else:
-            result = [{"subdomain": subdomain[0], "domain": subdomain[1], "workspace_name": workspace_name, 
-                       "source": subdomain[2], "scope": subdomain[3], "resolved": subdomain[4], 
-                       "created_at": subdomain[5], "updated_at": subdomain[6]} for subdomain in subdomains]
-            print(json.dumps(result, indent=4))
+            # If no specific source is provided, keep all subdomains
+            filtered_subdomains = subdomains
+
+        # Further filter for --source-only if specified
+        if source_only:
+            filtered_subdomains = [sub for sub in filtered_subdomains if sub[2].strip() == sources[0]]
+
+        if filtered_subdomains:
+            if brief:
+                # Print only the subdomain names
+                print("\n".join(sub[0] for sub in filtered_subdomains))
+            else:
+                result = [{"subdomain": sub[0], "domain": sub[1], "workspace_name": workspace_name, 
+                           "source": sub[2], "scope": sub[3], "resolved": sub[4], 
+                           "created_at": sub[5], "updated_at": sub[6]} for sub in filtered_subdomains]
+                print(json.dumps(result, indent=4))
+        else:
+            print(f"No subdomains found for the specified criteria in workspace '{workspace_name}'.")
     else:
         print(f"No subdomains found for domain '{domain}' in workspace '{workspace_name}'.")
 
@@ -332,10 +347,12 @@ def main():
     list_subdomains_parser = subdomain_action_parser.add_parser('list', help='List subdomains')
     list_subdomains_parser.add_argument('domain', help='Domain name')
     list_subdomains_parser.add_argument('workspace_name', help='Workspace name')
-    list_subdomains_parser.add_argument('--source', nargs='*', help='Filter by source(s)')  # Changed here
+    list_subdomains_parser.add_argument('--source', nargs='*', help='Filter by source(s)')
+    list_subdomains_parser.add_argument('--source-only', action='store_true', help='Show only subdomains matching the specified source(s)')
     list_subdomains_parser.add_argument('--scope', help='Filter by scope', choices=['inscope', 'outscope'])
     list_subdomains_parser.add_argument('--resolved', choices=['yes', 'no'], help='Filter by resolved status')
     list_subdomains_parser.add_argument('--brief', action='store_true', help='Show only subdomain names')
+
 
 
     # Adding subcommands for subdomain actions
@@ -378,8 +395,8 @@ def main():
                 resolved=args.resolved  # Pass resolved status
             )
         elif args.action == 'list':
-            # Updated to include 'scope' argument
-            list_subdomains(args.domain, args.workspace_name, args.source, args.scope, args.resolved, args.brief)
+            # Call the list_subdomains function with the new parameters
+            list_subdomains(args.domain, args.workspace_name, args.source, args.scope, args.resolved, args.brief, args.source_only)
         elif args.action == 'delete':
             # Check if the subdomain argument is a file
             if os.path.isfile(args.subdomain):
@@ -394,6 +411,7 @@ def main():
                     delete_single_subdomain(args.subdomain, args.domain, args.workspace_name, args.scope, args.source, args.resolved)
                 else:
                     delete_single_subdomain(args.subdomain, args.domain, args.workspace_name, args.scope, args.source, args.resolved)
+
 
 
 if __name__ == "__main__":
