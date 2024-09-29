@@ -33,11 +33,15 @@ CREATE TABLE IF NOT EXISTS subdomains (
     source TEXT,
     scope TEXT,
     resolved TEXT,
+    ip_address TEXT DEFAULT 'none',
+    cdn TEXT DEFAULT 'no',
+    cdn_name TEXT DEFAULT 'none',
     created_at TEXT,
     updated_at TEXT,
     PRIMARY KEY(subdomain, domain, workspace_name)
 )
 ''')
+
 
 # Function to create a new workspace
 def create_workspace(workspace_name):
@@ -125,7 +129,7 @@ def delete_domain_from_workspace(domain, workspace_name):
     print(f"Domain '{domain}' and all its subdomains deleted from workspace '{workspace_name}'.")
 
 # Function to add a subdomain (or subdomains from a file) to a domain in a workspace
-def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=None, scope='outscope', resolved='no'):
+def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=None, scope='outscope', resolved='no', ip_address='none', cdn='no', cdn_name='none'):
     # Custom timestamp format
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -158,23 +162,28 @@ def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=N
             updated_source_str = ", ".join(current_sources_set)
 
             # Update the subdomain with the new sources
-            cursor.execute("UPDATE subdomains SET source = ?, updated_at = ?, scope = ?, resolved = ? WHERE subdomain = ? AND domain = ? AND workspace_name = ?", 
-                           (updated_source_str, timestamp, scope, resolved, subdomain, domain, workspace_name))
+            cursor.execute("""
+                UPDATE subdomains 
+                SET source = ?, updated_at = ?, scope = ?, resolved = ?, ip_address = ?, cdn = ?, cdn_name = ?
+                WHERE subdomain = ? AND domain = ? AND workspace_name = ?""", 
+                (updated_source_str, timestamp, scope, resolved, ip_address, cdn, cdn_name, subdomain, domain, workspace_name))
             conn.commit()
-            print(f"Updated subdomain '{subdomain}' in domain '{domain}' with sources: {updated_source_str}, scope: {scope}, resolved: {resolved}")
+            print(f"Updated subdomain '{subdomain}' in domain '{domain}' with sources: {updated_source_str}, scope: {scope}, resolved: {resolved}, IP: {ip_address}, CDN: {cdn}, CDN Name: {cdn_name}")
         else:
             # Join the sources if provided, otherwise set to 'manual'
             new_source_str = ", ".join(sources) if sources else "manual"
-            # Insert the new subdomain
-            cursor.execute("INSERT INTO subdomains (subdomain, domain, workspace_name, source, scope, resolved, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
-                           (subdomain, domain, workspace_name, new_source_str, scope, resolved, timestamp, timestamp))
+            # Insert the new subdomain with additional columns
+            cursor.execute("""
+                INSERT INTO subdomains (subdomain, domain, workspace_name, source, scope, resolved, ip_address, cdn, cdn_name, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
+                (subdomain, domain, workspace_name, new_source_str, scope, resolved, ip_address, cdn, cdn_name, timestamp, timestamp))
             conn.commit()
-            print(f"Subdomain '{subdomain}' added to domain '{domain}' in workspace '{workspace_name}' with sources: {new_source_str}, scope: {scope}, resolved: {resolved}")
+            print(f"Subdomain '{subdomain}' added to domain '{domain}' in workspace '{workspace_name}' with sources: {new_source_str}, scope: {scope}, resolved: {resolved}, IP: {ip_address}, CDN: {cdn}, CDN Name: {cdn_name}")
 
-def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=None, brief=False, source_only=False):
+def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=None, brief=False, source_only=False, cdn=None, ip=None, cdn_name=None):
     # Base query
     query = """
-        SELECT subdomain, domain, source, scope, resolved, created_at, updated_at 
+        SELECT subdomain, domain, source, scope, resolved, ip_address, cdn, cdn_name, created_at, updated_at 
         FROM subdomains 
         WHERE workspace_name = ?
     """
@@ -195,6 +204,21 @@ def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=N
         query += " AND resolved = ?"
         parameters.append(resolved)
 
+    # Add filtering for cdn
+    if cdn:
+        query += " AND cdn = ?"
+        parameters.append(cdn)
+
+    # Add filtering for ip_address
+    if ip:
+        query += " AND ip_address = ?"
+        parameters.append(ip)
+
+    # Add filtering for cdn_name
+    if cdn_name:
+        query += " AND cdn_name = ?"
+        parameters.append(cdn_name)
+
     # Execute the query
     cursor.execute(query, parameters)
     subdomains = cursor.fetchall()
@@ -209,13 +233,12 @@ def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=N
                 subdomain_sources = [src.strip() for src in subdomain[2].split(',')]
                 if any(source in subdomain_sources for source in sources):
                     filtered_subdomains.append(subdomain)
-
         else:
             # If no specific source is provided, keep all subdomains
             filtered_subdomains = subdomains
 
         # Further filter for --source-only if specified
-        if source_only:
+        if source_only and sources:
             filtered_subdomains = [sub for sub in filtered_subdomains if sub[2].strip() == sources[0]]
 
         if filtered_subdomains:
@@ -223,9 +246,15 @@ def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=N
                 # Print only the subdomain names
                 print("\n".join(sub[0] for sub in filtered_subdomains))
             else:
-                result = [{"subdomain": sub[0], "domain": sub[1], "workspace_name": workspace_name, 
-                           "source": sub[2], "scope": sub[3], "resolved": sub[4], 
-                           "created_at": sub[5], "updated_at": sub[6]} for sub in filtered_subdomains]
+                result = [
+                    {
+                        "subdomain": sub[0], "domain": sub[1], "workspace_name": workspace_name,
+                        "source": sub[2], "scope": sub[3], "resolved": sub[4],
+                        "ip_address": sub[5], "cdn": sub[6], "cdn_name": sub[7],
+                        "created_at": sub[8], "updated_at": sub[9]
+                    }
+                    for sub in filtered_subdomains
+                ]
                 print(json.dumps(result, indent=4))
         else:
             print(f"No subdomains found for the specified criteria in workspace '{workspace_name}'.")
@@ -242,7 +271,7 @@ def delete_subdomain(subdomain, domain, workspace_name, scope=None, source=None)
     else:
         delete_single_subdomain(subdomain, domain, workspace_name, scope, source)
 
-def delete_single_subdomain(sub, domain, workspace_name, scope=None, source=None, resolved=None):
+def delete_single_subdomain(sub, domain, workspace_name, scope=None, source=None, resolved=None, ip_address=None, cdn=None, cdn_name=None):
     if sub == '*':
         # Start building the delete query for all subdomains
         query = "DELETE FROM subdomains WHERE domain = ? AND workspace_name = ?"
@@ -263,9 +292,24 @@ def delete_single_subdomain(sub, domain, workspace_name, scope=None, source=None
             query += " AND scope = ?"
             params.append(scope)
 
+        # Add filtering for IP address
+        if ip_address:
+            query += " AND ip_address = ?"
+            params.append(ip_address)
+
+        # Add filtering for CDN status
+        if cdn:
+            query += " AND cdn = ?"
+            params.append(cdn)
+
+        # Add filtering for CDN name
+        if cdn_name:
+            query += " AND cdn_name = ?"
+            params.append(cdn_name)
+
         cursor.execute(query, params)
         conn.commit()
-        print(f"All matching subdomains deleted from domain '{domain}' in workspace '{workspace_name}' with source '{source}', resolved status '{resolved}', and scope '{scope}'.")
+        print(f"All matching subdomains deleted from domain '{domain}' in workspace '{workspace_name}' with source '{source}', resolved status '{resolved}', scope '{scope}', IP address '{ip_address}', CDN status '{cdn}', and CDN name '{cdn_name}'.")
     else:
         # Delete a single subdomain with optional filters
         query = "DELETE FROM subdomains WHERE subdomain = ? AND domain = ? AND workspace_name = ?"
@@ -281,10 +325,24 @@ def delete_single_subdomain(sub, domain, workspace_name, scope=None, source=None
             query += " AND scope = ?"
             params.append(scope)
 
+        # Add filtering for IP address
+        if ip_address:
+            query += " AND ip_address = ?"
+            params.append(ip_address)
+
+        # Add filtering for CDN status
+        if cdn:
+            query += " AND cdn = ?"
+            params.append(cdn)
+
+        # Add filtering for CDN name
+        if cdn_name:
+            query += " AND cdn_name = ?"
+            params.append(cdn_name)
+
         cursor.execute(query, params)
         conn.commit()
-        print(f"Subdomain '{sub}' deleted from domain '{domain}' in workspace '{workspace_name}'.")
-
+        print(f"Subdomain '{sub}' deleted from domain '{domain}' in workspace '{workspace_name}' with IP address '{ip_address}', CDN status '{cdn}', and CDN name '{cdn_name}'.")
 
 # Function to delete all subdomains with a specific source
 def delete_subdomains_by_source(domain, workspace_name, source):
@@ -342,6 +400,9 @@ def main():
     add_subdomain_parser.add_argument('--source', help='Source(s) (comma-separated)', nargs='*')
     add_subdomain_parser.add_argument('--scope', help='Scope (default: inscope)', choices=['inscope', 'outscope'], default='inscope')
     add_subdomain_parser.add_argument('--resolved', help='Resolved status (yes or no)', choices=['yes', 'no'], default='no')  # New resolved argument
+    add_subdomain_parser.add_argument('--ip', default='none', help='IP address of the subdomain')
+    add_subdomain_parser.add_argument('--cdn', default='no', choices=['yes', 'no'], help='Whether the subdomain uses a CDN')
+    add_subdomain_parser.add_argument('--cdn_name', default='none', help='Name of the CDN provider')
     
     # List subdomains
     list_subdomains_parser = subdomain_action_parser.add_parser('list', help='List subdomains')
@@ -351,8 +412,10 @@ def main():
     list_subdomains_parser.add_argument('--source-only', action='store_true', help='Show only subdomains matching the specified source(s)')
     list_subdomains_parser.add_argument('--scope', help='Filter by scope', choices=['inscope', 'outscope'])
     list_subdomains_parser.add_argument('--resolved', choices=['yes', 'no'], help='Filter by resolved status')
+    list_subdomains_parser.add_argument('--cdn', choices=['yes', 'no'], help='Filter by CDN status')
+    list_subdomains_parser.add_argument('--ip', help='Filter by IP address')
+    list_subdomains_parser.add_argument('--cdn_name', help='Filter by CDN provider name')
     list_subdomains_parser.add_argument('--brief', action='store_true', help='Show only subdomain names')
-
 
 
     # Adding subcommands for subdomain actions
@@ -363,6 +426,9 @@ def main():
     delete_subdomain_parser.add_argument('--resolved', help='Filter by resolved status', choices=['yes', 'no'])
     delete_subdomain_parser.add_argument('--source', help='Filter by source')
     delete_subdomain_parser.add_argument('--scope', help='Filter by scope', choices=['inscope', 'outscope'])
+    delete_subdomain_parser.add_argument('--ip', help='Filter by IP address')
+    delete_subdomain_parser.add_argument('--cdn', help='Filter by CDN status', choices=['yes', 'no'])
+    delete_subdomain_parser.add_argument('--cdn_name', help='Filter by CDN name')
 
     args = parser.parse_args()
 
@@ -385,18 +451,11 @@ def main():
 
     elif args.command == 'subdomain':
         if args.action == 'add':
-            # Include additional parameters for source, scope, and resolved
-            add_subdomain_to_domain(
-                args.subdomain, 
-                args.domain, 
-                args.workspace_name, 
-                sources=args.source,  # Pass sources as a list
-                scope=args.scope, 
-                resolved=args.resolved  # Pass resolved status
-            )
+            # Include additional parameters for source, scope, resolved, ip_address, cdn, and cdn_name
+            add_subdomain_to_domain(args.subdomain, args.domain, args.workspace_name, sources=args.source, scope=args.scope, resolved=args.resolved, ip_address=args.ip, cdn=args.cdn, cdn_name=args.cdn_name)
         elif args.action == 'list':
             # Call the list_subdomains function with the new parameters
-            list_subdomains(args.domain, args.workspace_name, args.source, args.scope, args.resolved, args.brief, args.source_only)
+            list_subdomains(args.domain, args.workspace_name, args.source, args.scope, args.resolved, args.brief, args.source_only, args.cdn, args.ip, args.cdn_name)
         elif args.action == 'delete':
             # Check if the subdomain argument is a file
             if os.path.isfile(args.subdomain):
@@ -408,11 +467,9 @@ def main():
             else:
                 # Check if '*' is specified for deleting all subdomains
                 if args.subdomain == '*':
-                    delete_single_subdomain(args.subdomain, args.domain, args.workspace_name, args.scope, args.source, args.resolved)
+                    delete_single_subdomain(args.subdomain, args.domain, args.workspace_name, args.scope, args.source, args.resolved, args.ip, args.cdn, args.cdn_name)
                 else:
-                    delete_single_subdomain(args.subdomain, args.domain, args.workspace_name, args.scope, args.source, args.resolved)
-
-
+                    delete_single_subdomain(args.subdomain, args.domain, args.workspace_name)
 
 if __name__ == "__main__":
     main()
