@@ -331,30 +331,21 @@ def delete_subdomain(subdomain, domain, workspace_name, scope=None, source=None)
     if not cursor.fetchone():
         print(f"Workspace '{workspace_name}' does not exist.")
         return  # Exit if the workspace does not exist
-
     # Check if the domain exists in the specified workspace
     cursor.execute("SELECT * FROM domains WHERE domain = ? AND workspace_name = ?", (domain, workspace_name))
     if not cursor.fetchone() and domain != '*':
         print(f"Domain '{domain}' does not exist in workspace '{workspace_name}'.")
         return  # Exit if the domain does not exist
-
     if os.path.isfile(subdomain):  # Check if the subdomain is a file
         with open(subdomain, 'r') as file:
             subdomains = [line.strip() for line in file if line.strip()]
-        
+
         for sub in subdomains:
             delete_single_subdomain(sub, domain, workspace_name, scope, source)
     else:
         delete_single_subdomain(subdomain, domain, workspace_name, scope, source)
 
 def delete_single_subdomain(sub, domain, workspace_name, scope=None, source=None, resolved=None, ip_address=None, cdn=None, cdn_name=None):
-    # Check if the subdomain exists
-    cursor.execute("SELECT * FROM subdomains WHERE subdomain = ? AND domain = ? AND workspace_name = ?", 
-                   (sub, domain, workspace_name))
-    if not cursor.fetchone():
-        print(f"Subdomain '{sub}' does not exist in domain '{domain}' in workspace '{workspace_name}'.")
-        return  # Exit if the subdomain does not exist
-
     if sub == '*':
         # Start building the delete query for all subdomains
         query = "DELETE FROM subdomains WHERE domain = ? AND workspace_name = ?"
