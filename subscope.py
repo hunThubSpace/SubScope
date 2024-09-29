@@ -531,7 +531,7 @@ def main():
         elif args.action == 'list':
             list_domains(args.workspace_name, brief=args.brief)
         elif args.action == 'delete':
-            delete_domain_from_workspace(args.domain, args.workspace_name)
+            delete_workspace(args.domain, args.workspace_name)
 
     elif args.command == 'subdomain':
         if args.action == 'add':
