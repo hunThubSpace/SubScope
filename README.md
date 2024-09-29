@@ -7,7 +7,7 @@ SubScope is a Python-based command-line tool that helps you manage domains and s
 - Create, list, and delete workspaces.
 - Add, list, and delete domains within workspaces.
 - Add, list, and delete subdomains associated with domains in workspaces.
-- Filter and update subdomains based on source, scope, and resolved status.
+- Filter and update subdomains based on source, scope, ip_address, cdn_name and resolved status.
 - Bulk operations for domains and subdomains from files.
 
 ## Requirements
@@ -153,80 +153,88 @@ python3 subscope.py <command> <subcommand> [options]
     ```bash
     ➜ python3 subscope.py subdomain add api.tesla.com tesla.com tesla_wk --source manual --scope inscope --resolved no
 
-    [+] Subdomain 'api.tesla.com' added to domain 'tesla.com' in workspace 'tesla_wk' with sources: manual, scope: inscope, resolved: no
+    [+] Subdomain 'api.tesla.com' added to domain 'tesla.com' in workspace 'tesla_wk' with sources: manual, scope: inscope, resolved: no, IP: none, CDN: no, CDN Name: none
     ```
 
 - Add subdomains from `subs.txt` to `tesla.com` in `tesla_wk`:
     ```bash
     python3 subscope.py subdomain add subs.txt tesla.com tesla_wk --source crtsh manual --scope inscope --resolved yes
 
-    [+] Subdomain 'www.tesla.com' added to domain 'tesla.com' in workspace 'tesla_wk' with sources: crtsh, manual, scope: inscope, resolved: yes
-    [+] Subdomain 'mail.tesla.com' added to domain 'tesla.com' in workspace 'tesla_wk' with sources: crtsh, manual, scope: inscope, resolved: yes
+    [+] Subdomain 'www.tesla.com' added to domain 'tesla.com' in workspace 'tesla_wk' with sources: crtsh, manual, scope: inscope, resolved: yes, IP: none, CDN: no, CDN Name: none
+    [+] Subdomain 'mail.tesla.com' added to domain 'tesla.com' in workspace 'tesla_wk' with sources: crtsh, manual, scope: inscope, resolved: yes, IP: none, CDN: no, CDN Name: none
     ```
 
 - List all subdomains of `tesla.com` in `tesla_wk`:
     ```bash
     ➜ python3 subscope.py subdomain list tesla.com tesla_wk --source crtsh
-
-    [
-        {
-            "subdomain": "www.tesla.com",
-            "domain": "tesla.com",
-            "workspace_name": "tesla_wk",
-            "source": "crtsh, manual",
-            "scope": "inscope",
-            "resolved": "yes",
-            "created_at": "2024-09-27 22:21:37",
-            "updated_at": "2024-09-27 22:21:37"
-        },
-        {
-            "subdomain": "mail.tesla.com",
-            "domain": "tesla.com",
-            "workspace_name": "tesla_wk",
-            "source": "crtsh, manual",
-            "scope": "inscope",
-            "resolved": "yes",
-            "created_at": "2024-09-27 22:21:37",
-            "updated_at": "2024-09-27 22:21:37"
-        }
-    ]
+   [
+       {
+           "subdomain": "www.tesla.com",
+           "domain": "tesla.com",
+           "workspace_name": "tesla_wk",
+           "source": "crtsh, manual",
+           "scope": "inscope",
+           "resolved": "yes",
+           "ip_address": "none",
+           "cdn": "no",
+           "cdn_name": "none",
+           "created_at": "2024-09-29 17:21:04",
+           "updated_at": "2024-09-29 17:21:04"
+       },
+       {
+           "subdomain": "mail.tesla.com",
+           "domain": "tesla.com",
+           "workspace_name": "tesla_wk",
+           "source": "crtsh, manual",
+           "scope": "inscope",
+           "resolved": "yes",
+           "ip_address": "none",
+           "cdn": "no",
+           "cdn_name": "none",
+           "created_at": "2024-09-29 17:21:04",
+           "updated_at": "2024-09-29 17:21:04"
+       }
+   ]
     ```
 
-- List all subdomains of all domains in `tesla_wk` --resolved no:
+- List all subdomains of all domains in `tesla_wk` --resolved no --source manual --source--only:
     ```bash
-    ➜ python3 subscope.py subdomain list '*' tesla_wk
+    ➜ python3 subscope.py subdomain list '*' tesla_wk --resolved no --source manual --source--only
 
-    [
-        {
-            "subdomain": "api.tesla.com",
-            "domain": "tesla.com",
-            "workspace_name": "tesla_wk",
-            "source": "manual",
-            "scope": "inscope",
-            "resolved": "no",
-            "created_at": "2024-09-27 22:19:02",
-            "updated_at": "2024-09-27 22:19:02"
-        }
-    ]
+   [
+       {
+           "subdomain": "api.tesla.com",
+           "domain": "tesla.com",
+           "workspace_name": "tesla_wk",
+           "source": "manual",
+           "scope": "inscope",
+           "resolved": "no",
+           "ip_address": "none",
+           "cdn": "no",
+           "cdn_name": "none",
+           "created_at": "2024-09-29 17:19:36",
+           "updated_at": "2024-09-29 17:19:36"
+       }
+   ]
     ```
 
 - Delete subdomain `www.tesla.com` from `tesla.com` domain, `tesla_wk` workspace:
     ```bash
     ➜ python3 subscope.py subdomain delete www.tesla.com tesla.com tesla_wk
 
-    [+] Subdomain 'www.tesla.com' deleted from domain 'tesla.com' in workspace 'tesla_wk'
+    [+] Subdomain 'www.tesla.com' deleted from domain 'tesla.com' in workspace 'tesla_wk' with IP address 'None', CDN status 'None', and CDN name 'None'.
     ```
 
 - Delete all subdomains of `tesla.com` with a specific source:
     ```bash
     python3 subscope.py subdomain delete '*' tesla.com tesla_wk --source crtsh
 
-    [+] All matching subdomains deleted from domain 'tesla.com' in workspace 'tesla_wk' with source 'crtsh', resolved status 'None', and scope 'None'.
+    [+] All matching subdomains deleted from domain 'tesla.com' in workspace 'tesla_wk' with source 'crtsh', resolved status 'None', scope 'None', IP address 'None', CDN status 'None', and CDN name 'None'.
     ```
 
 - List of subdomains of `tesla.com` in short mode
     ```bash
-    ➜ python3 subscope.py subdomain list tesla.com tesla_wk --biref
+    ➜ python3 subscope.py subdomain list tesla.com tesla_wk --brief
 
     api.tesla.com
     www.tesla.com
