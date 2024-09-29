@@ -122,15 +122,15 @@ python3 subscope.py <command> <subcommand> [options]
     -h, --help         show this help message and exit
 
     # Add a Subdomain to a Domain
-    python3 subscope.py subdomain add <single_sub|subdomains.txt> <domain_name> <workspace_name> [--source <source>] [--scope <inscope|outscope>] [--resolved <yes|no>]
+    python3 subscope.py subdomain add <single_sub|subdomains.txt> <domain_name> <workspace_name> [--source <source>] [--scope <inscope|outscope>] [--resolved <yes|no>] [--ip_address <IP|none>] [--cdn <yes|no>] [--cdn_name <cdn_name>]
     # Default values: --source manual | --scope inscope | --resolved no
 
     # List Subdomains of a Domain
-    python3 subscope.py subdomain list <domain_name|*> <workspace_name> [--source <source>] [--scope <inscope|outscope>] [--resolved <yes|no>] [--brief]
+    python3 subscope.py subdomain list <domain_name|*> <workspace_name> [--source <source>] [--scope <inscope|outscope>] [--resolved <yes|no>] [--ip_address <IP|none>] [--cdn <yes|no>] [--cdn_name <cdn_name>] [--brief]
     # Use --brief to display only the subdomain names.
 
     # Delete a Subdomain
-    python3 subscope.py subdomain delete <subdomain_name|*> <domain_name> <workspace_name> [--resolved <yes|no>] [--source <source>] [--scope <inscope|outscope>]
+    python3 subscope.py subdomain delete <subdomain_name|*> <domain_name> <workspace_name>  [--source <source>] [--scope <inscope|outscope>] [--resolved <yes|no>] [--ip_address <IP|none>] [--cdn <yes|no>] [--cdn_name <cdn_name>]
     ```
 
 ### Example Usage
