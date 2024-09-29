@@ -46,14 +46,29 @@ CREATE TABLE IF NOT EXISTS subdomains (
 # Function to create a new workspace
 def create_workspace(workspace_name):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Format: YYYY-MM-DD HH:MM:SS
+
+    # Check if the workspace already exists
+    cursor.execute("SELECT * FROM workspaces WHERE workspace_name = ?", (workspace_name,))
+    existing_workspace = cursor.fetchone()
+
+    if existing_workspace:
+        print(f"Error: Workspace '{workspace_name}' already exists.")
+        return  # Exit the function if the workspace already exists
+
+    # If the workspace does not exist, create a new one
     cursor.execute("INSERT INTO workspaces (workspace_name, created_at) VALUES (?, ?)", (workspace_name, timestamp))
     conn.commit()
     print(f"Workspace '{workspace_name}' created.")
+
 
 # Function to list all workspaces
 def list_workspaces(brief=False):
     cursor.execute("SELECT workspace_name, created_at FROM workspaces")
     workspaces = cursor.fetchall()
+
+    # If no workspaces exist, return early
+    if not workspaces:
+        return  # No output if there are no workspaces
 
     if brief:
         for workspace in workspaces:
@@ -64,13 +79,33 @@ def list_workspaces(brief=False):
 
 # Function to delete a workspace and all its associated domains and subdomains
 def delete_workspace(workspace_name):
-    # Delete all subdomains associated with domains in the workspace
+    if workspace_name == '*':
+        # Delete all subdomains associated with all workspaces
+        cursor.execute("DELETE FROM subdomains")
+
+        # Delete all domains associated with all workspaces
+        cursor.execute("DELETE FROM domains")
+
+        # Delete all workspaces
+        cursor.execute("DELETE FROM workspaces")
+        
+        conn.commit()
+        print("All workspaces, along with their associated domains and subdomains, have been deleted.")
+        return  # Exit the function after deleting all
+
+    # Check if the specified workspace exists
+    cursor.execute("SELECT * FROM workspaces WHERE workspace_name = ?", (workspace_name,))
+    if not cursor.fetchone():
+        print(f"Workspace '{workspace_name}' does not exist.")
+        return  # Exit the function if the workspace does not exist
+
+    # Delete all subdomains associated with the specified workspace
     cursor.execute("DELETE FROM subdomains WHERE workspace_name = ?", (workspace_name,))
     
-    # Delete all domains associated with the workspace
+    # Delete all domains associated with the specified workspace
     cursor.execute("DELETE FROM domains WHERE workspace_name = ?", (workspace_name,))
     
-    # Delete the workspace itself (change 'workspaces' to the correct table name)
+    # Delete the specified workspace
     cursor.execute("DELETE FROM workspaces WHERE workspace_name = ?", (workspace_name,))
     
     conn.commit()
@@ -80,6 +115,14 @@ def delete_workspace(workspace_name):
 # Function to add a domain to a workspace
 def add_domain_to_workspace(domain_or_file, workspace_name):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Format: YYYY-MM-DD HH:MM:SS
+
+    # Check if the workspace exists
+    cursor.execute("SELECT * FROM workspaces WHERE workspace_name = ?", (workspace_name,))
+    existing_workspace = cursor.fetchone()
+
+    if not existing_workspace:
+        print(f"Error: Workspace '{workspace_name}' does not exist.")
+        return  # Exit the function if the workspace does not exist
 
     # Check if the input is a file
     if os.path.isfile(domain_or_file):
@@ -107,8 +150,19 @@ def add_domain_to_workspace(domain_or_file, workspace_name):
 
 # Function to list all domains in a workspace
 def list_domains(workspace_name, brief=False):
+    # Check if the workspace exists
+    cursor.execute("SELECT * FROM workspaces WHERE workspace_name = ?", (workspace_name,))
+    if not cursor.fetchone():
+        print(f"Workspace '{workspace_name}' does not exist.")
+        return  # Exit the function if the workspace does not exist
+
+    # Fetch domains associated with the existing workspace
     cursor.execute("SELECT domain, created_at FROM domains WHERE workspace_name = ?", (workspace_name,))
     domains = cursor.fetchall()
+
+    # Check if there are any domains to display
+    if not domains:
+        return  # Exit if there are no domains; no output will be printed
 
     if brief:
         for domain in domains:
@@ -117,21 +171,23 @@ def list_domains(workspace_name, brief=False):
         domain_list = [{'domain': domain[0], 'created_at': domain[1]} for domain in domains]
         print(json.dumps({"domains": domain_list}, indent=4))
 
-# Function to delete a domain and its subdomains from a workspace
-def delete_domain_from_workspace(domain, workspace_name):
-    # Delete all subdomains associated with the domain in the workspace
-    cursor.execute("DELETE FROM subdomains WHERE domain = ? AND workspace_name = ?", (domain, workspace_name))
-    
-    # Delete the domain itself from the workspace
-    cursor.execute("DELETE FROM domains WHERE domain = ? AND workspace_name = ?", (domain, workspace_name))
-    
-    conn.commit()
-    print(f"Domain '{domain}' and all its subdomains deleted from workspace '{workspace_name}'.")
 
 # Function to add a subdomain (or subdomains from a file) to a domain in a workspace
 def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=None, scope='outscope', resolved='no', ip_address='none', cdn='no', cdn_name='none'):
     # Custom timestamp format
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Check if the workspace exists
+    cursor.execute("SELECT * FROM workspaces WHERE workspace_name = ?", (workspace_name,))
+    if not cursor.fetchone():
+        print(f"Workspace '{workspace_name}' does not exist.")
+        return  # Exit if the workspace does not exist
+
+    # Check if the domain exists
+    cursor.execute("SELECT * FROM domains WHERE domain = ? AND workspace_name = ?", (domain, workspace_name))
+    if not cursor.fetchone():
+        print(f"Domain '{domain}' does not exist in workspace '{workspace_name}'.")
+        return  # Exit if the domain does not exist
 
     # Check if the input is a file
     if os.path.isfile(subdomain_or_file):
@@ -181,6 +237,18 @@ def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=N
             print(f"Subdomain '{subdomain}' added to domain '{domain}' in workspace '{workspace_name}' with sources: {new_source_str}, scope: {scope}, resolved: {resolved}, IP: {ip_address}, CDN: {cdn}, CDN Name: {cdn_name}")
 
 def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=None, brief=False, source_only=False, cdn=None, ip=None, cdn_name=None):
+    # Check if the workspace exists
+    cursor.execute("SELECT * FROM workspaces WHERE workspace_name = ?", (workspace_name,))
+    if not cursor.fetchone():
+        print(f"Workspace '{workspace_name}' does not exist.")
+        return  # Exit if the workspace does not exist
+
+    # Check if the domain exists in the specified workspace
+    cursor.execute("SELECT * FROM domains WHERE domain = ? AND workspace_name = ?", (domain, workspace_name))
+    if not cursor.fetchone() and domain != '*':
+        # Domain does not exist, no output is needed
+        return  # Exit if the domain does not exist
+
     # Base query
     query = """
         SELECT subdomain, domain, source, scope, resolved, ip_address, cdn, cdn_name, created_at, updated_at 
@@ -256,12 +324,20 @@ def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=N
                     for sub in filtered_subdomains
                 ]
                 print(json.dumps(result, indent=4))
-        else:
-            print(f"No subdomains found for the specified criteria in workspace '{workspace_name}'.")
-    else:
-        print(f"No subdomains found for domain '{domain}' in workspace '{workspace_name}'.")
 
 def delete_subdomain(subdomain, domain, workspace_name, scope=None, source=None):
+    # Check if the workspace exists
+    cursor.execute("SELECT * FROM workspaces WHERE workspace_name = ?", (workspace_name,))
+    if not cursor.fetchone():
+        print(f"Workspace '{workspace_name}' does not exist.")
+        return  # Exit if the workspace does not exist
+
+    # Check if the domain exists in the specified workspace
+    cursor.execute("SELECT * FROM domains WHERE domain = ? AND workspace_name = ?", (domain, workspace_name))
+    if not cursor.fetchone() and domain != '*':
+        print(f"Domain '{domain}' does not exist in workspace '{workspace_name}'.")
+        return  # Exit if the domain does not exist
+
     if os.path.isfile(subdomain):  # Check if the subdomain is a file
         with open(subdomain, 'r') as file:
             subdomains = [line.strip() for line in file if line.strip()]
@@ -272,6 +348,13 @@ def delete_subdomain(subdomain, domain, workspace_name, scope=None, source=None)
         delete_single_subdomain(subdomain, domain, workspace_name, scope, source)
 
 def delete_single_subdomain(sub, domain, workspace_name, scope=None, source=None, resolved=None, ip_address=None, cdn=None, cdn_name=None):
+    # Check if the subdomain exists
+    cursor.execute("SELECT * FROM subdomains WHERE subdomain = ? AND domain = ? AND workspace_name = ?", 
+                   (sub, domain, workspace_name))
+    if not cursor.fetchone():
+        print(f"Subdomain '{sub}' does not exist in domain '{domain}' in workspace '{workspace_name}'.")
+        return  # Exit if the subdomain does not exist
+
     if sub == '*':
         # Start building the delete query for all subdomains
         query = "DELETE FROM subdomains WHERE domain = ? AND workspace_name = ?"
@@ -350,6 +433,7 @@ def delete_subdomains_by_source(domain, workspace_name, source):
                    (domain, workspace_name, f"%{source}%"))
     conn.commit()
     print(f"All subdomains with source '{source}' deleted from domain '{domain}' in workspace '{workspace_name}'.")
+
 
 # Main function to handle command-line arguments
 def main():
