@@ -2,7 +2,7 @@ import sqlite3
 import json
 import argparse
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Connect to SQLite database
 conn = sqlite3.connect('scopes.db')
@@ -236,18 +236,17 @@ def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=N
             conn.commit()
             print(f"Subdomain '{subdomain}' added to domain '{domain}' in workspace '{workspace_name}' with sources: {new_source_str}, scope: {scope}, resolved: {resolved}, IP: {ip_address}, CDN: {cdn}, CDN Name: {cdn_name}")
 
-def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=None, brief=False, source_only=False, cdn=None, ip=None, cdn_name=None):
+def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=None, brief=False, source_only=False, cdn=None, ip=None, cdn_name=None, create_time=None, update_time=None):
     # Check if the workspace exists
     cursor.execute("SELECT * FROM workspaces WHERE workspace_name = ?", (workspace_name,))
     if not cursor.fetchone():
         print(f"Workspace '{workspace_name}' does not exist.")
-        return  # Exit if the workspace does not exist
+        return
 
     # Check if the domain exists in the specified workspace
     cursor.execute("SELECT * FROM domains WHERE domain = ? AND workspace_name = ?", (domain, workspace_name))
     if not cursor.fetchone() and domain != '*':
-        # Domain does not exist, no output is needed
-        return  # Exit if the domain does not exist
+        return
 
     # Base query
     query = """
@@ -287,31 +286,39 @@ def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=N
         query += " AND cdn_name = ?"
         parameters.append(cdn_name)
 
+    # Parse create_time and update_time and add time range filters
+    if create_time:
+        start_time, end_time = parse_time_range(create_time)
+        query += " AND created_at BETWEEN ? AND ?"
+        parameters.extend([start_time, end_time])
+
+    if update_time:
+        start_time, end_time = parse_time_range(update_time)
+        query += " AND updated_at BETWEEN ? AND ?"
+        parameters.extend([start_time, end_time])
+
     # Execute the query
     cursor.execute(query, parameters)
     subdomains = cursor.fetchall()
 
     if subdomains:
         filtered_subdomains = []
-        
-        # If sources are provided, filter the results
+
+        # Filter by source if provided
         if sources:
             for subdomain in subdomains:
-                # Check if any source in the list is included in the subdomain source
                 subdomain_sources = [src.strip() for src in subdomain[2].split(',')]
                 if any(source in subdomain_sources for source in sources):
                     filtered_subdomains.append(subdomain)
         else:
-            # If no specific source is provided, keep all subdomains
             filtered_subdomains = subdomains
 
-        # Further filter for --source-only if specified
+        # Further filter for --source-only
         if source_only and sources:
             filtered_subdomains = [sub for sub in filtered_subdomains if sub[2].strip() == sources[0]]
 
         if filtered_subdomains:
             if brief:
-                # Print only the subdomain names
                 print("\n".join(sub[0] for sub in filtered_subdomains))
             else:
                 result = [
@@ -324,6 +331,41 @@ def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=N
                     for sub in filtered_subdomains
                 ]
                 print(json.dumps(result, indent=4))
+
+def parse_time_range(time_range_str):
+    # Handle time ranges in the format 'start_time,end_time'
+    times = time_range_str.split(',')
+    if len(times) == 1:
+        # If only one time is provided, assume the end time is the same and use the entire range of that time point
+        start_time, end_time = parse_single_time(times[0])
+    elif len(times) == 2:
+        # If two times are provided, parse the start and end times
+        start_time = parse_single_time(times[0])[0]
+        end_time = parse_single_time(times[1])[1]
+    else:
+        raise ValueError(f"Invalid time range format: {time_range_str}")
+    return start_time, end_time
+
+def parse_single_time(time_str):
+    # Parse a single time and return start and end times
+    formats = ['%Y-%m-%d-%H:%M', '%Y-%m-%d-%H', '%Y-%m-%d', '%Y-%m', '%Y']
+    for fmt in formats:
+        try:
+            start_time = datetime.strptime(time_str, fmt)
+            if fmt == '%Y-%m-%d-%H:%M':
+                end_time = start_time + timedelta(minutes=1) - timedelta(seconds=1)
+            elif fmt == '%Y-%m-%d-%H':
+                end_time = start_time + timedelta(hours=1) - timedelta(seconds=1)
+            elif fmt == '%Y-%m-%d':
+                end_time = start_time + timedelta(days=1) - timedelta(seconds=1)
+            elif fmt == '%Y-%m':
+                end_time = start_time.replace(month=start_time.month % 12 + 1, day=1) - timedelta(seconds=1)
+            elif fmt == '%Y':
+                end_time = start_time.replace(year=start_time.year + 1, month=1, day=1) - timedelta(seconds=1)
+            return start_time, end_time
+        except ValueError:
+            continue
+    raise ValueError(f"Invalid time format: {time_str}")
 
 def delete_subdomain(subdomain, domain, workspace_name, scope=None, source=None):
     # Check if the workspace exists
@@ -339,7 +381,6 @@ def delete_subdomain(subdomain, domain, workspace_name, scope=None, source=None)
     if os.path.isfile(subdomain):  # Check if the subdomain is a file
         with open(subdomain, 'r') as file:
             subdomains = [line.strip() for line in file if line.strip()]
-
         for sub in subdomains:
             delete_single_subdomain(sub, domain, workspace_name, scope, source)
     else:
@@ -491,6 +532,8 @@ def main():
     list_subdomains_parser.add_argument('--ip', help='Filter by IP address')
     list_subdomains_parser.add_argument('--cdn_name', help='Filter by CDN provider name')
     list_subdomains_parser.add_argument('--brief', action='store_true', help='Show only subdomain names')
+    list_subdomains_parser.add_argument('--create_time', help='Filter by creation time (e.g., 2024-09-29 or 2024-09). Supports time ranges (e.g., 2023-12-03-12:30,2024-03-10-12:30)')
+    list_subdomains_parser.add_argument('--update_time', help='Filter by last update time (e.g., 2024-09-29 or 2024-09). Supports time ranges (e.g., 2023,2024)')
 
 
     # Adding subcommands for subdomain actions
@@ -529,8 +572,8 @@ def main():
             # Include additional parameters for source, scope, resolved, ip_address, cdn, and cdn_name
             add_subdomain_to_domain(args.subdomain, args.domain, args.workspace_name, sources=args.source, scope=args.scope, resolved=args.resolved, ip_address=args.ip, cdn=args.cdn, cdn_name=args.cdn_name)
         elif args.action == 'list':
-            # Call the list_subdomains function with the new parameters
-            list_subdomains(args.domain, args.workspace_name, args.source, args.scope, args.resolved, args.brief, args.source_only, args.cdn, args.ip, args.cdn_name)
+            # Call the list_subdomains function with the new parameters for create_time and update_time
+            list_subdomains(args.domain, args.workspace_name, args.source, args.scope, args.resolved, args.brief, args.source_only, args.cdn, args.ip, args.cdn_name, args.create_time, args.update_time)
         elif args.action == 'delete':
             # Check if the subdomain argument is a file
             if os.path.isfile(args.subdomain):
