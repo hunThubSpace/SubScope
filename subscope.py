@@ -3,6 +3,11 @@ import json
 import argparse
 import os
 from datetime import datetime, timedelta
+import colorama
+from colorama import Fore, Back, Style
+
+# Initialize colorama
+colorama.init()
 
 # Connect to SQLite database
 conn = sqlite3.connect('scopes.db')
@@ -52,13 +57,13 @@ def create_workspace(workspace_name):
     existing_workspace = cursor.fetchone()
 
     if existing_workspace:
-        print(f"Error: Workspace '{workspace_name}' already exists.")
+        print(f"{Fore.RED}{Style.BRIGHT}[-ER] {Style.RESET_ALL} Workspace '{workspace_name}' already exists")
         return  # Exit the function if the workspace already exists
 
     # If the workspace does not exist, create a new one
     cursor.execute("INSERT INTO workspaces (workspace_name, created_at) VALUES (?, ?)", (workspace_name, timestamp))
     conn.commit()
-    print(f"Workspace '{workspace_name}' created.")
+    print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} Workspace '{workspace_name}' created at '{timestamp}'")
 
 
 # Function to list all workspaces
@@ -90,13 +95,13 @@ def delete_workspace(workspace_name):
         cursor.execute("DELETE FROM workspaces")
         
         conn.commit()
-        print("All workspaces, along with their associated domains and subdomains, have been deleted.")
+        print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} All workspaces, along with their associated domains and subdomains, have been deleted")
         return  # Exit the function after deleting all
 
     # Check if the specified workspace exists
     cursor.execute("SELECT * FROM workspaces WHERE workspace_name = ?", (workspace_name,))
     if not cursor.fetchone():
-        print(f"Workspace '{workspace_name}' does not exist.")
+        print(f"{Fore.RED}{Style.BRIGHT}[-ER]{Style.RESET_ALL} Workspace '{workspace_name}' does not exist")
         return  # Exit the function if the workspace does not exist
 
     # Delete all subdomains associated with the specified workspace
@@ -109,7 +114,7 @@ def delete_workspace(workspace_name):
     cursor.execute("DELETE FROM workspaces WHERE workspace_name = ?", (workspace_name,))
     
     conn.commit()
-    print(f"Workspace '{workspace_name}', all associated domains, and subdomains deleted.")
+    print(f"{Fore.RED}{Style.BRIGHT}[-ER]{Style.RESET_ALL} Workspace '{workspace_name}', all associated domains, and subdomains deleted")
 
 
 # Function to add a domain to a workspace
@@ -121,7 +126,7 @@ def add_domain_to_workspace(domain_or_file, workspace_name):
     existing_workspace = cursor.fetchone()
 
     if not existing_workspace:
-        print(f"Error: Workspace '{workspace_name}' does not exist.")
+        print(f"{Fore.RED}{Style.BRIGHT}[-ER]{Style.RESET_ALL} Workspace '{workspace_name}' does not exist")
         return  # Exit the function if the workspace does not exist
 
     # Check if the input is a file
@@ -139,21 +144,21 @@ def add_domain_to_workspace(domain_or_file, workspace_name):
         existing_domain = cursor.fetchone()
 
         if existing_domain:
-            print(f"Domain '{domain}' already exists in workspace '{workspace_name}'.")
+            print(f"{Fore.RED}{Style.BRIGHT}[-ER]{Style.RESET_ALL} Domain '{domain}' already exists in workspace '{workspace_name}'")
         else:
             try:
                 cursor.execute("INSERT INTO domains (domain, workspace_name, created_at) VALUES (?, ?, ?)", (domain, workspace_name, timestamp))
                 conn.commit()
-                print(f"Domain '{domain}' added to workspace '{workspace_name}'.")
+                print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} Domain '{domain}' added to workspace '{workspace_name}' at '{timestamp}'")
             except sqlite3.IntegrityError:
-                print(f"Error: Domain '{domain}' already exists in the database.")
+                print(f"{Fore.RED}{Style.BRIGHT}[-ER]{Style.RESET_ALL} Domain '{domain}' already exists in the database")
 
 # Function to list all domains in a workspace
 def list_domains(workspace_name, brief=False):
     # Check if the workspace exists
     cursor.execute("SELECT * FROM workspaces WHERE workspace_name = ?", (workspace_name,))
     if not cursor.fetchone():
-        print(f"Workspace '{workspace_name}' does not exist.")
+        print(f"{Fore.RED}{Style.BRIGHT}[-ER]{Style.RESET_ALL} Workspace '{workspace_name}' does not exist")
         return  # Exit the function if the workspace does not exist
 
     # Fetch domains associated with the existing workspace
@@ -181,7 +186,7 @@ def delete_domain_from_workspace(domain, workspace_name):
         cursor.execute("DELETE FROM domains WHERE workspace_name = ?", (workspace_name,))
         
         conn.commit()
-        print(f"All domains and their subdomains deleted from workspace '{workspace_name}'.")
+        print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} All domains and their subdomains deleted from workspace '{workspace_name}'")
     else:
         # Delete all subdomains associated with the domain in the workspace
         cursor.execute("DELETE FROM subdomains WHERE domain = ? AND workspace_name = ?", (domain, workspace_name))
@@ -190,7 +195,7 @@ def delete_domain_from_workspace(domain, workspace_name):
         cursor.execute("DELETE FROM domains WHERE domain = ? AND workspace_name = ?", (domain, workspace_name))
         
         conn.commit()
-        print(f"Domain '{domain}' and all its subdomains deleted from workspace '{workspace_name}'.")
+        print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} Domain '{domain}' and all its subdomains deleted from workspace '{workspace_name}'")
 
 # Function to add a subdomain (or subdomains from a file) to a domain in a workspace
 def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=None, scope='outscope', resolved='no', ip_address='none', cdn='no', cdn_name='none'):
@@ -200,13 +205,13 @@ def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=N
     # Check if the workspace exists
     cursor.execute("SELECT * FROM workspaces WHERE workspace_name = ?", (workspace_name,))
     if not cursor.fetchone():
-        print(f"Workspace '{workspace_name}' does not exist.")
+        print(f"{Fore.RED}{Style.BRIGHT}[-ER]{Style.RESET_ALL} Workspace '{workspace_name}' does not exist")
         return  # Exit if the workspace does not exist
 
     # Check if the domain exists
     cursor.execute("SELECT * FROM domains WHERE domain = ? AND workspace_name = ?", (domain, workspace_name))
     if not cursor.fetchone():
-        print(f"Domain '{domain}' does not exist in workspace '{workspace_name}'.")
+        print(f"{Fore.RED}{Style.BRIGHT}[-ER]{Style.RESET_ALL} Domain '{domain}' does not exist in workspace '{workspace_name}'")
         return  # Exit if the domain does not exist
 
     # Check if the input is a file
@@ -259,7 +264,7 @@ def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=N
                 update_query += ", updated_at = ? WHERE subdomain = ? AND domain = ? AND workspace_name = ?"
                 cursor.execute(update_query, (*update_fields.values(), timestamp, subdomain, domain, workspace_name))
                 conn.commit()
-                print(f"Updated subdomain '{subdomain}' in domain '{domain}' with updates: {update_fields}")
+                print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} Updated subdomain '{subdomain}' in domain '{domain}' with updates: {Fore.YELLOW}{Style.BRIGHT}{update_fields}{Style.RESET_ALL}")
 
         else:
             # If the subdomain does not exist, create it with no defaults
@@ -269,14 +274,14 @@ def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=N
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
                 (subdomain, domain, workspace_name, new_source_str, scope, resolved, ip_address, cdn, cdn_name, timestamp, timestamp))
             conn.commit()
-            print(f"Subdomain '{subdomain}' added to domain '{domain}' in workspace '{workspace_name}' with sources: {new_source_str}, scope: {scope}, resolved: {resolved}, IP: {ip_address}, CDN: {cdn}, CDN Name: {cdn_name}")
+            print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} Subdomain '{subdomain}' added to domain '{domain}' in workspace '{workspace_name}' with sources: {Fore.YELLOW}{Style.BRIGHT}{new_source_str}{Style.RESET_ALL}, scope: {Fore.YELLOW}{Style.BRIGHT}{scope}{Style.RESET_ALL}, resolved: {Fore.YELLOW}{Style.BRIGHT}{resolved}{Style.RESET_ALL}, IP: {Fore.YELLOW}{Style.BRIGHT}{ip_address}{Style.RESET_ALL}, CDN: {Fore.YELLOW}{Style.BRIGHT}{cdn}{Style.RESET_ALL}, CDN Name: {Fore.YELLOW}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}")
 
 
 def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=None, brief=False, source_only=False, cdn=None, ip=None, cdn_name=None, create_time=None, update_time=None):
     # Check if the workspace exists
     cursor.execute("SELECT * FROM workspaces WHERE workspace_name = ?", (workspace_name,))
     if not cursor.fetchone():
-        print(f"Workspace '{workspace_name}' does not exist.")
+        print(f"{Fore.RED}{Style.BRIGHT}[-ER]{Style.RESET_ALL} Workspace '{workspace_name}' does not exist")
         return
 
     # Check if the domain exists in the specified workspace
@@ -407,12 +412,12 @@ def delete_subdomain(subdomain, domain, workspace_name, scope=None, source=None)
     # Check if the workspace exists
     cursor.execute("SELECT * FROM workspaces WHERE workspace_name = ?", (workspace_name,))
     if not cursor.fetchone():
-        print(f"Workspace '{workspace_name}' does not exist.")
+        print(f"{Fore.RED}{Style.BRIGHT}[-ER]{Style.RESET_ALL} Workspace '{workspace_name}' does not exist")
         return  # Exit if the workspace does not exist
     # Check if the domain exists in the specified workspace
     cursor.execute("SELECT * FROM domains WHERE domain = ? AND workspace_name = ?", (domain, workspace_name))
     if not cursor.fetchone() and domain != '*':
-        print(f"Domain '{domain}' does not exist in workspace '{workspace_name}'.")
+        print(f"{Fore.RED}{Style.BRIGHT}[-ER]{Style.RESET_ALL} Domain '{domain}' does not exist in workspace '{workspace_name}'")
         return  # Exit if the domain does not exist
     if os.path.isfile(subdomain):  # Check if the subdomain is a file
         with open(subdomain, 'r') as file:
@@ -460,7 +465,7 @@ def delete_single_subdomain(sub, domain, workspace_name, scope=None, source=None
 
         cursor.execute(query, params)
         conn.commit()
-        print(f"All matching subdomains deleted from domain '{domain}' in workspace '{workspace_name}' with source '{source}', resolved status '{resolved}', scope '{scope}', IP address '{ip_address}', CDN status '{cdn}', and CDN name '{cdn_name}'.")
+        print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} All matching subdomains deleted from domain '{domain}' in workspace '{workspace_name}' with sources: {Fore.YELLOW}{Style.BRIGHT}{source}{Style.RESET_ALL}, scope: {Fore.YELLOW}{Style.BRIGHT}{scope}{Style.RESET_ALL}, resolved: {Fore.YELLOW}{Style.BRIGHT}{resolved}{Style.RESET_ALL}, IP: {Fore.YELLOW}{Style.BRIGHT}{ip_address}{Style.RESET_ALL}, CDN: {Fore.YELLOW}{Style.BRIGHT}{cdn}{Style.RESET_ALL}, CDN Name: {Fore.YELLOW}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}")
     else:
         # Delete a single subdomain with optional filters
         query = "DELETE FROM subdomains WHERE subdomain = ? AND domain = ? AND workspace_name = ?"
@@ -493,14 +498,14 @@ def delete_single_subdomain(sub, domain, workspace_name, scope=None, source=None
 
         cursor.execute(query, params)
         conn.commit()
-        print(f"Subdomain '{sub}' deleted from domain '{domain}' in workspace '{workspace_name}' with IP address '{ip_address}', CDN status '{cdn}', and CDN name '{cdn_name}'.")
+        print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} Subdomain '{sub}' deleted from domain '{domain}' in workspace '{workspace_name}' with IP address '{ip_address}', CDN status '{cdn}', and CDN name '{cdn_name}'")
 
 # Function to delete all subdomains with a specific source
 def delete_subdomains_by_source(domain, workspace_name, source):
     cursor.execute("DELETE FROM subdomains WHERE domain = ? AND workspace_name = ? AND source LIKE ?", 
                    (domain, workspace_name, f"%{source}%"))
     conn.commit()
-    print(f"All subdomains with source '{source}' deleted from domain '{domain}' in workspace '{workspace_name}'.")
+    print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} All subdomains with source '{source}' deleted from domain '{domain}' in workspace '{workspace_name}'")
 
 
 # Main function to handle command-line arguments
