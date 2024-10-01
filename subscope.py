@@ -171,6 +171,26 @@ def list_domains(workspace_name, brief=False):
         domain_list = [{'domain': domain[0], 'created_at': domain[1]} for domain in domains]
         print(json.dumps({"domains": domain_list}, indent=4))
 
+# Function to delete a domain and its subdomains from a workspace
+def delete_domain_from_workspace(domain, workspace_name):
+    if domain == '*':
+        # Delete all subdomains from the workspace
+        cursor.execute("DELETE FROM subdomains WHERE workspace_name = ?", (workspace_name,))
+        
+        # Delete all domains from the workspace
+        cursor.execute("DELETE FROM domains WHERE workspace_name = ?", (workspace_name,))
+        
+        conn.commit()
+        print(f"All domains and their subdomains deleted from workspace '{workspace_name}'.")
+    else:
+        # Delete all subdomains associated with the domain in the workspace
+        cursor.execute("DELETE FROM subdomains WHERE domain = ? AND workspace_name = ?", (domain, workspace_name))
+        
+        # Delete the domain itself from the workspace
+        cursor.execute("DELETE FROM domains WHERE domain = ? AND workspace_name = ?", (domain, workspace_name))
+        
+        conn.commit()
+        print(f"Domain '{domain}' and all its subdomains deleted from workspace '{workspace_name}'.")
 
 # Function to add a subdomain (or subdomains from a file) to a domain in a workspace
 def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=None, scope='outscope', resolved='no', ip_address='none', cdn='no', cdn_name='none'):
@@ -199,42 +219,58 @@ def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=N
 
     # Process each subdomain
     for subdomain in subdomains:
-        cursor.execute("SELECT source FROM subdomains WHERE subdomain = ? AND domain = ? AND workspace_name = ?", 
+        cursor.execute("SELECT * FROM subdomains WHERE subdomain = ? AND domain = ? AND workspace_name = ?", 
                        (subdomain, domain, workspace_name))
         existing = cursor.fetchone()
 
+        # Prepare for updates
+        update_fields = {}
         if existing:
-            # If the subdomain exists, get the current sources
-            current_sources = existing[0].split(", ")
-            # Create a set to avoid duplicates
-            current_sources_set = set(current_sources)
-
-            # Append new sources to the set
+            # Update fields if parameters are provided
             if sources:
-                new_sources = [src.strip() for src in sources]
+                current_sources = existing[3].split(", ") if existing[3] else []
+                current_sources_set = set(current_sources)
+                new_sources = [src.strip() for src in sources if src.strip()]
                 current_sources_set.update(new_sources)
+                updated_sources = ", ".join(sorted(current_sources_set)) if current_sources_set else ""
+                if updated_sources != existing[3]:  # Check if sources have changed
+                    update_fields['source'] = updated_sources
 
-            # Create the updated source string
-            updated_source_str = ", ".join(current_sources_set)
+            if resolved != 'no' and resolved != existing[5]:  # Assuming 5th column is 'resolved'
+                update_fields['resolved'] = resolved
 
-            # Update the subdomain with the new sources
-            cursor.execute("""
-                UPDATE subdomains 
-                SET source = ?, updated_at = ?, scope = ?, resolved = ?, ip_address = ?, cdn = ?, cdn_name = ?
-                WHERE subdomain = ? AND domain = ? AND workspace_name = ?""", 
-                (updated_source_str, timestamp, scope, resolved, ip_address, cdn, cdn_name, subdomain, domain, workspace_name))
-            conn.commit()
-            print(f"Updated subdomain '{subdomain}' in domain '{domain}' with sources: {updated_source_str}, scope: {scope}, resolved: {resolved}, IP: {ip_address}, CDN: {cdn}, CDN Name: {cdn_name}")
+            if ip_address != 'none' and ip_address != existing[6]:  # Assuming 6th column is 'ip_address'
+                update_fields['ip_address'] = ip_address
+            
+            if cdn != 'no' and cdn != existing[7]:  # Assuming 7th column is 'cdn'
+                update_fields['cdn'] = cdn
+            
+            if cdn_name != 'none' and cdn_name != existing[8]:  # Assuming 8th column is 'cdn_name'
+                update_fields['cdn_name'] = cdn_name
+
+            # Always allow updates for 'cdn' from yes to no or vice versa
+            if cdn != existing[7]:  # Assuming 7th column is 'cdn'
+                update_fields['cdn'] = cdn
+
+            # Update the subdomain only if there are changes
+            if update_fields:
+                update_query = "UPDATE subdomains SET "
+                update_query += ", ".join(f"{col} = ?" for col in update_fields.keys())
+                update_query += ", updated_at = ? WHERE subdomain = ? AND domain = ? AND workspace_name = ?"
+                cursor.execute(update_query, (*update_fields.values(), timestamp, subdomain, domain, workspace_name))
+                conn.commit()
+                print(f"Updated subdomain '{subdomain}' in domain '{domain}' with updates: {update_fields}")
+
         else:
-            # Join the sources if provided, otherwise set to 'manual'
-            new_source_str = ", ".join(sources) if sources else "manual"
-            # Insert the new subdomain with additional columns
+            # If the subdomain does not exist, create it with no defaults
+            new_source_str = ", ".join(sources) if sources else ""  # No default value
             cursor.execute("""
                 INSERT INTO subdomains (subdomain, domain, workspace_name, source, scope, resolved, ip_address, cdn, cdn_name, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
                 (subdomain, domain, workspace_name, new_source_str, scope, resolved, ip_address, cdn, cdn_name, timestamp, timestamp))
             conn.commit()
             print(f"Subdomain '{subdomain}' added to domain '{domain}' in workspace '{workspace_name}' with sources: {new_source_str}, scope: {scope}, resolved: {resolved}, IP: {ip_address}, CDN: {cdn}, CDN Name: {cdn_name}")
+
 
 def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=None, brief=False, source_only=False, cdn=None, ip=None, cdn_name=None, create_time=None, update_time=None):
     # Check if the workspace exists
@@ -565,7 +601,19 @@ def main():
         elif args.action == 'list':
             list_domains(args.workspace_name, brief=args.brief)
         elif args.action == 'delete':
-            delete_workspace(args.domain, args.workspace_name)
+            # Check if the user wants to delete all domains in the workspace
+            if args.domain == '*':
+                delete_domain_from_workspace('*', args.workspace_name) 
+            else:
+                delete_domain_from_workspace(args.domain, args.workspace_name)
+
+    elif args.command == 'domain':
+        if args.action == 'add':
+            add_domain_to_workspace(args.domain, args.workspace_name)
+        elif args.action == 'list':
+            list_domains(args.workspace_name, brief=args.brief)
+        elif args.action == 'delete':
+            delete_domain_from_workspace(args.domain, args.workspace_name)
 
     elif args.command == 'subdomain':
         if args.action == 'add':
