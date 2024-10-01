@@ -264,7 +264,7 @@ def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=N
                 update_query += ", updated_at = ? WHERE subdomain = ? AND domain = ? AND workspace_name = ?"
                 cursor.execute(update_query, (*update_fields.values(), timestamp, subdomain, domain, workspace_name))
                 conn.commit()
-                print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} Updated subdomain '{subdomain}' in domain '{domain}' with updates: {Fore.YELLOW}{Style.BRIGHT}{update_fields}{Style.RESET_ALL}")
+                print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} Updated subdomain '{Fore.YELLOW}{Style.BRIGHT}{subdomain}{Style.RESET_ALL}' in domain '{Fore.YELLOW}{Style.BRIGHT}{domain}{Style.RESET_ALL}' in workspace '{Fore.YELLOW}{Style.BRIGHT}{workspace_name}{Style.RESET_ALL}' with updates: {Fore.YELLOW}{Style.BRIGHT}{update_fields}{Style.RESET_ALL}")
 
         else:
             # If the subdomain does not exist, create it with no defaults
@@ -274,7 +274,7 @@ def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=N
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
                 (subdomain, domain, workspace_name, new_source_str, scope, resolved, ip_address, cdn, cdn_name, timestamp, timestamp))
             conn.commit()
-            print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} Subdomain '{subdomain}' added to domain '{domain}' in workspace '{workspace_name}' with sources: {Fore.YELLOW}{Style.BRIGHT}{new_source_str}{Style.RESET_ALL}, scope: {Fore.YELLOW}{Style.BRIGHT}{scope}{Style.RESET_ALL}, resolved: {Fore.YELLOW}{Style.BRIGHT}{resolved}{Style.RESET_ALL}, IP: {Fore.YELLOW}{Style.BRIGHT}{ip_address}{Style.RESET_ALL}, CDN: {Fore.YELLOW}{Style.BRIGHT}{cdn}{Style.RESET_ALL}, CDN Name: {Fore.YELLOW}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} Subdomain '{Fore.YELLOW}{Style.BRIGHT}{subdomain}{Style.RESET_ALL}' added to domain '{Fore.YELLOW}{Style.BRIGHT}{domain}{Style.RESET_ALL}' in workspace '{Fore.YELLOW}{Style.BRIGHT}{workspace_name}{Style.RESET_ALL}' with sources: {Fore.YELLOW}{Style.BRIGHT}{new_source_str}{Style.RESET_ALL}, scope: {Fore.YELLOW}{Style.BRIGHT}{scope}{Style.RESET_ALL}, resolved: {Fore.YELLOW}{Style.BRIGHT}{resolved}{Style.RESET_ALL}, IP: {Fore.YELLOW}{Style.BRIGHT}{ip_address}{Style.RESET_ALL}, CDN: {Fore.YELLOW}{Style.BRIGHT}{cdn}{Style.RESET_ALL}, CDN Name: {Fore.YELLOW}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}")
 
 
 def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=None, brief=False, source_only=False, cdn=None, ip=None, cdn_name=None, create_time=None, update_time=None):
@@ -465,7 +465,7 @@ def delete_single_subdomain(sub, domain, workspace_name, scope=None, source=None
 
         cursor.execute(query, params)
         conn.commit()
-        print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} All matching subdomains deleted from domain '{domain}' in workspace '{workspace_name}' with sources: {Fore.YELLOW}{Style.BRIGHT}{source}{Style.RESET_ALL}, scope: {Fore.YELLOW}{Style.BRIGHT}{scope}{Style.RESET_ALL}, resolved: {Fore.YELLOW}{Style.BRIGHT}{resolved}{Style.RESET_ALL}, IP: {Fore.YELLOW}{Style.BRIGHT}{ip_address}{Style.RESET_ALL}, CDN: {Fore.YELLOW}{Style.BRIGHT}{cdn}{Style.RESET_ALL}, CDN Name: {Fore.YELLOW}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} All matching subdomains deleted from domain '{Fore.YELLOW}{Style.BRIGHT}{domain}{Style.RESET_ALL}' in workspace '{Fore.YELLOW}{Style.BRIGHT}{workspace_name}{Style.RESET_ALL}' with sources: {Fore.YELLOW}{Style.BRIGHT}{source}{Style.RESET_ALL}, scope: {Fore.YELLOW}{Style.BRIGHT}{scope}{Style.RESET_ALL}, resolved: {Fore.YELLOW}{Style.BRIGHT}{resolved}{Style.RESET_ALL}, IP: {Fore.YELLOW}{Style.BRIGHT}{ip_address}{Style.RESET_ALL}, CDN: {Fore.YELLOW}{Style.BRIGHT}{cdn}{Style.RESET_ALL}, CDN Name: {Fore.YELLOW}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}")
     else:
         # Delete a single subdomain with optional filters
         query = "DELETE FROM subdomains WHERE subdomain = ? AND domain = ? AND workspace_name = ?"
@@ -498,7 +498,7 @@ def delete_single_subdomain(sub, domain, workspace_name, scope=None, source=None
 
         cursor.execute(query, params)
         conn.commit()
-        print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} Subdomain '{sub}' deleted from domain '{domain}' in workspace '{workspace_name}' with IP address '{ip_address}', CDN status '{cdn}', and CDN name '{cdn_name}'")
+        print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} Subdomain '{Fore.YELLOW}{Style.BRIGHT}{sub}{Style.RESET_ALL}' deleted from domain '{Fore.YELLOW}{Style.BRIGHT}{domain}{Style.RESET_ALL}' in workspace '{Fore.YELLOW}{Style.BRIGHT}{workspace_name}{Style.RESET_ALL}' with IP address '{Fore.YELLOW}{Style.BRIGHT}{ip_address}{Style.RESET_ALL}', CDN status '{cdn}', and CDN name '{cdn_name}'")
 
 # Function to delete all subdomains with a specific source
 def delete_subdomains_by_source(domain, workspace_name, source):
