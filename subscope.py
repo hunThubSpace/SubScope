@@ -498,7 +498,7 @@ def delete_single_subdomain(sub, domain, workspace_name, scope=None, source=None
 
         cursor.execute(query, params)
         conn.commit()
-        print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} Subdomain '{Fore.YELLOW}{Style.BRIGHT}{sub}{Style.RESET_ALL}' deleted from domain '{Fore.YELLOW}{Style.BRIGHT}{domain}{Style.RESET_ALL}' in workspace '{Fore.YELLOW}{Style.BRIGHT}{workspace_name}{Style.RESET_ALL}' with IP address '{Fore.YELLOW}{Style.BRIGHT}{ip_address}{Style.RESET_ALL}', CDN status '{cdn}', and CDN name '{cdn_name}'")
+        print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} Subdomain '{Fore.YELLOW}{Style.BRIGHT}{sub}{Style.RESET_ALL}' deleted from domain '{Fore.YELLOW}{Style.BRIGHT}{domain}{Style.RESET_ALL}' in workspace '{Fore.YELLOW}{Style.BRIGHT}{workspace_name}{Style.RESET_ALL}' with IP address '{Fore.YELLOW}{Style.BRIGHT}{ip_address}{Style.RESET_ALL}', CDN status '{Fore.YELLOW}{Style.BRIGHT}{cdn}{Style.RESET_ALL}', and CDN name '{Fore.YELLOW}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}'")
 
 # Function to delete all subdomains with a specific source
 def delete_subdomains_by_source(domain, workspace_name, source):
