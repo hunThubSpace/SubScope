@@ -133,18 +133,19 @@ options:
 ➜ python3 subscope.py subdomain add <single_subdomain> <domain_name> <workspace_name> --source dns4char --resolved yes --ip 10.34.110.54
 
 # List Commands
-➜ python3 subscope.py subdomain list <domain_name> <workspace_name>                                                  # List Subdomains of a Domain | JSON
-➜ python3 subscope.py subdomain list '*' <workspace_name>                                                            # List all Subdomains in a Workspace | JSON
-➜ python3 subscope.py subdomain list <domain_name> <workspace_name> --brief                                          # List Subdomains of a Domain | TXT, Only display the subdomains
-➜ python3 subscope.py subdomain list <domain_name> <workspace_name> --source crtsh                                   # List Subdomains of a Domain for crtsh source | JSON
-➜ python3 subscope.py subdomain list <domain_name> <workspace_name> --source crtsh --source-only                     # List Subdomains of a Domain for crtsh source (exclusively) | JSON
-➜ python3 subscope.py subdomain list <domain_name> <workspace_name> --source crtsh --source-only --brief             # List Subdomains of a Domain for crtsh source (exclusively) | TXT
-➜ python3 subscope.py subdomain list <domain_name> <workspace_name> --resolved yes --cdn_name akamai                 # List resolved subdomains of a Domain with akamai CDN | JSON
-➜ python3 subscope.py subdomain list <domain_name> <workspace_name> --ip 10.2.1.4                                    # List resolved subdomains of a Domain with 10.2.1.4 in IP | JSON
-➜ python3 subscope.py subdomain list <domain_name> <workspace_name> --update_time 2024                               # List subdomains of a Domain updated in year 2024 | JSON
-➜ python3 subscope.py subdomain list <domain_name> <workspace_name> --update_time 2024-09                            # List subdomains of a Domain updated from 2024-09-00-00:00:00 to 2024-12-31-23:59:59 | JSON
-➜ python3 subscope.py subdomain list <domain_name> <workspace_name> --update_time 2024-09-10-12                      # List subdomains of a Domain updated from 2024-09-10-12:00:00 to 2024-09-10-12:59:59 | JSON
-➜ python3 subscope.py subdomain list <domain_name> <workspace_name> --update_time 2024-09-10,2024-12-10              # List subdomains of a Domain updated from 2024-09-10-00:00:00 to 2024-09-12-23:59:59 | JSON
+➜ python3 subscope.py subdomain list <subdomain_name> <domain_name> <workspace_name>                                     # Search for existing a subdomain from a domain in a workspace
+➜ python3 subscope.py subdomain list '*' <domain_name> <workspace_name>                                                  # List Subdomains of a Domain | JSON
+➜ python3 subscope.py subdomain list '*' '*' <workspace_name>                                                            # List all Subdomains in a Workspace | JSON
+➜ python3 subscope.py subdomain list '*' <domain_name> <workspace_name> --brief                                          # List Subdomains of a Domain | TXT, Only display the subdomains
+➜ python3 subscope.py subdomain list '*' <domain_name> <workspace_name> --source crtsh                                   # List Subdomains of a Domain for crtsh source | JSON
+➜ python3 subscope.py subdomain list '*' <domain_name> <workspace_name> --source crtsh --source-only                     # List Subdomains of a Domain for crtsh source (exclusively) | JSON
+➜ python3 subscope.py subdomain list '*' <domain_name> <workspace_name> --source crtsh --source-only --brief             # List Subdomains of a Domain for crtsh source (exclusively) | TXT
+➜ python3 subscope.py subdomain list '*' <domain_name> <workspace_name> --resolved yes --cdn_name akamai                 # List resolved subdomains of a Domain with akamai CDN | JSON
+➜ python3 subscope.py subdomain list '*' <domain_name> <workspace_name> --ip 10.2.1.4                                    # List resolved subdomains of a Domain with 10.2.1.4 in IP | JSON
+➜ python3 subscope.py subdomain list '*' <domain_name> <workspace_name> --update_time 2024                               # List subdomains of a Domain updated in year 2024 | JSON
+➜ python3 subscope.py subdomain list '*' <domain_name> <workspace_name> --update_time 2024-09                            # List subdomains of a Domain updated from 2024-09-00-00:00:00 to 2024-12-31-23:59:59 | JSON
+➜ python3 subscope.py subdomain list '*' <domain_name> <workspace_name> --update_time 2024-09-10-12                      # List subdomains of a Domain updated from 2024-09-10-12:00:00 to 2024-09-10-12:59:59 | JSON
+➜ python3 subscope.py subdomain list '*' <domain_name> <workspace_name> --update_time 2024-09-10,2024-12-10              # List subdomains of a Domain updated from 2024-09-10-00:00:00 to 2024-09-12-23:59:59 | JSON
 
 # Delete Commands
 ➜ python3 subscope.py subdomain delete <subdomain_name> <domain_name> <workspace_name>              # Delete a subdomain
