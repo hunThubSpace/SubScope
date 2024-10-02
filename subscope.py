@@ -1,9 +1,11 @@
+#!/usr/bin/python3
+
+import argparse
 import sqlite3
 import json
-import argparse
 import os
-from datetime import datetime, timedelta
 import colorama
+from datetime import datetime, timedelta
 from colorama import Fore, Back, Style
 
 # Initialize colorama
@@ -277,16 +279,11 @@ def add_subdomain_to_domain(subdomain_or_file, domain, workspace_name, sources=N
             print(f"{Fore.GREEN}{Style.BRIGHT}[+OK]{Style.RESET_ALL} Subdomain '{Fore.YELLOW}{Style.BRIGHT}{subdomain}{Style.RESET_ALL}' added to domain '{Fore.YELLOW}{Style.BRIGHT}{domain}{Style.RESET_ALL}' in workspace '{Fore.YELLOW}{Style.BRIGHT}{workspace_name}{Style.RESET_ALL}' with sources: {Fore.YELLOW}{Style.BRIGHT}{new_source_str}{Style.RESET_ALL}, scope: {Fore.YELLOW}{Style.BRIGHT}{scope}{Style.RESET_ALL}, resolved: {Fore.YELLOW}{Style.BRIGHT}{resolved}{Style.RESET_ALL}, IP: {Fore.YELLOW}{Style.BRIGHT}{ip_address}{Style.RESET_ALL}, CDN: {Fore.YELLOW}{Style.BRIGHT}{cdn}{Style.RESET_ALL}, CDN Name: {Fore.YELLOW}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}")
 
 
-def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=None, brief=False, source_only=False, cdn=None, ip=None, cdn_name=None, create_time=None, update_time=None):
+def list_subdomains(subdomain, domain, workspace_name, sources=None, scope=None, resolved=None, brief=False, source_only=False, cdn=None, ip=None, cdn_name=None, create_time=None, update_time=None):
     # Check if the workspace exists
     cursor.execute("SELECT * FROM workspaces WHERE workspace_name = ?", (workspace_name,))
     if not cursor.fetchone():
         print(f"{Fore.RED}{Style.BRIGHT}[-ER]{Style.RESET_ALL} Workspace '{workspace_name}' does not exist")
-        return
-
-    # Check if the domain exists in the specified workspace
-    cursor.execute("SELECT * FROM domains WHERE domain = ? AND workspace_name = ?", (domain, workspace_name))
-    if not cursor.fetchone() and domain != '*':
         return
 
     # Base query
@@ -297,11 +294,25 @@ def list_subdomains(domain, workspace_name, sources=None, scope=None, resolved=N
     """
     parameters = [workspace_name]
 
-    # Handle wildcard for domain
+    # Handle wildcard for domain and subdomain
     if domain != '*':
         query += " AND domain = ?"
         parameters.append(domain)
 
+    if subdomain != '*':
+        query += " AND subdomain = ?"
+        parameters.append(subdomain)
+
+    # If listing all subdomains for all domains
+    if domain == '*' and subdomain == '*':
+        # No extra filters applied
+        query = """
+            SELECT subdomain, domain, source, scope, resolved, ip_address, cdn, cdn_name, created_at, updated_at 
+            FROM subdomains 
+            WHERE workspace_name = ?
+        """
+        parameters = [workspace_name]
+    
     # Add filtering for scope
     if scope:
         query += " AND scope = ?"
@@ -563,7 +574,8 @@ def main():
     
     # List subdomains
     list_subdomains_parser = subdomain_action_parser.add_parser('list', help='List subdomains')
-    list_subdomains_parser.add_argument('domain', help='Domain name')
+    list_subdomains_parser.add_argument('subdomain', help='Subdomain name or wildcard')
+    list_subdomains_parser.add_argument('domain', help='Domain name or wildcard')
     list_subdomains_parser.add_argument('workspace_name', help='Workspace name')
     list_subdomains_parser.add_argument('--source', nargs='*', help='Filter by source(s)')
     list_subdomains_parser.add_argument('--source-only', action='store_true', help='Show only subdomains matching the specified source(s)')
@@ -622,11 +634,11 @@ def main():
 
     elif args.command == 'subdomain':
         if args.action == 'add':
-            # Include additional parameters for source, scope, resolved, ip_address, cdn, and cdn_name
+            # Handle the addition of subdomains
             add_subdomain_to_domain(args.subdomain, args.domain, args.workspace_name, sources=args.source, scope=args.scope, resolved=args.resolved, ip_address=args.ip, cdn=args.cdn, cdn_name=args.cdn_name)
         elif args.action == 'list':
-            # Call the list_subdomains function with the new parameters for create_time and update_time
-            list_subdomains(args.domain, args.workspace_name, args.source, args.scope, args.resolved, args.brief, args.source_only, args.cdn, args.ip, args.cdn_name, args.create_time, args.update_time)
+            # Call the modified list_subdomains function
+            list_subdomains(args.subdomain, args.domain, args.workspace_name, args.source, args.scope, args.resolved, args.brief, args.source_only, args.cdn, args.ip, args.cdn_name, args.create_time, args.update_time)
         elif args.action == 'delete':
             # Check if the subdomain argument is a file
             if os.path.isfile(args.subdomain):
