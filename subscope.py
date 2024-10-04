@@ -233,7 +233,7 @@ def list_domains(domain='*', workspace='*', brief=False):
             if workspace == '*':
                 domain_list.append({'domain': domain[0], 'workspace': domain[1], 'created_at': domain[2]})
             else:
-                domain_list.append({'domain': domain[0], 'workspace': domain[1], 'created_at': domain[2]})
+                domain_list.append({'domain': domain[0], 'created_at': domain[1]})
 
         print(json.dumps({"domains": domain_list}, indent=4))
 
