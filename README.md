@@ -52,7 +52,6 @@ python3 subscope.py <command> <subcommand> [options]
 | -------------- | ------------------------------| ------------- | ------------------------- |
 | `Workspace`    | [here](docs/workspace.md)     | `subdomain`   | [here](docs/subdomain.md) |
 | `domain`       | [here](docs/domain.md)        | `live url`    | [here](docs/live.md)      |
-| 
 
 ## Contributing
 
