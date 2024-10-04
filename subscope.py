@@ -1046,6 +1046,87 @@ def main():
     parser = argparse.ArgumentParser(description='Manage workspaces, domains, and subdomains')
     sub_parser = parser.add_subparsers(dest='command')
     
+    # Workspace commands
+    workspace_parser = sub_parser.add_parser('workspace', help='Manage workspaces')
+    workspace_action_parser = workspace_parser.add_subparsers(dest='action')
+
+    # Create a new workspace
+    workspace_action_parser.add_parser('create', help='Create a new workspace').add_argument('workspace', help='Name of the workspace')
+
+    # List workspaces, with optional brief output
+    list_workspaces_parser = workspace_action_parser.add_parser('list', help='List workspaces')
+    list_workspaces_parser.add_argument('workspace', help="Workspace name or wildcard '*' for all workspaces")
+    list_workspaces_parser.add_argument('--brief', action='store_true', help='Show only workspace names')
+    
+    # Delete a workspace
+    workspace_action_parser.add_parser('delete', help='Delete a workspace').add_argument('workspace', help='Name of the workspace')
+
+    # Domain commands
+    domain_parser = sub_parser.add_parser('domain', help='Manage domains in a workspace')
+    domain_action_parser = domain_parser.add_subparsers(dest='action')
+
+    # Add a domain
+    add_domain_parser = domain_action_parser.add_parser('add', help='Add a domain')
+    add_domain_parser.add_argument('domain', help='Domain name')
+    add_domain_parser.add_argument('workspace', help='Workspace name')
+
+    # List domains in a workspace
+    list_domains_parser = domain_action_parser.add_parser('list', help='List domains in a workspace')
+    list_domains_parser.add_argument('domain', help='Domain name (use "*" for all domains)')
+    list_domains_parser.add_argument('workspace', help='Workspace name (use "*" for all workspaces)')
+    list_domains_parser.add_argument('--brief', action='store_true', help='Show only domain names')
+
+
+    # Delete a domain from a workspace
+    delete_domain_parser = domain_action_parser.add_parser('delete', help='Delete a domain')
+    delete_domain_parser.add_argument('domain', help='Domain name')
+    delete_domain_parser.add_argument('workspace', help='Workspace name')
+
+    # Subdomain commands
+    subdomain_parser = sub_parser.add_parser('subdomain', help='Manage subdomains in a workspace')
+    subdomain_action_parser = subdomain_parser.add_subparsers(dest='action')
+
+    # Add a subdomain
+    add_subdomain_parser = subdomain_action_parser.add_parser('add', help='Add a subdomain')
+    add_subdomain_parser.add_argument('subdomain', help='Subdomain name')
+    add_subdomain_parser.add_argument('domain', help='Domain name')
+    add_subdomain_parser.add_argument('workspace', help='Workspace name')
+    add_subdomain_parser.add_argument('--source', help='Source(s) (comma-separated)', nargs='*')
+    add_subdomain_parser.add_argument('--scope', help='Scope (default: inscope)', choices=['inscope', 'outscope'], default='inscope')
+    add_subdomain_parser.add_argument('--resolved', help='Resolved status (yes or no)', choices=['yes', 'no'], default='no')  # New resolved argument
+    add_subdomain_parser.add_argument('--ip', default='none', help='IP address of the subdomain')
+    add_subdomain_parser.add_argument('--cdn_status', default='no', choices=['yes', 'no'], help='Whether the subdomain uses a cdn_status')
+    add_subdomain_parser.add_argument('--cdn_name', default='none', help='Name of the CDN provider')
+    
+    # List subdomains
+    list_subdomains_parser = subdomain_action_parser.add_parser('list', help='List subdomains')
+    list_subdomains_parser.add_argument('subdomain', help='Subdomain name or wildcard')
+    list_subdomains_parser.add_argument('domain', help='Domain name or wildcard')
+    list_subdomains_parser.add_argument('workspace', help='Workspace name')
+    list_subdomains_parser.add_argument('--source', nargs='*', help='Filter by source(s)')
+    list_subdomains_parser.add_argument('--source-only', action='store_true', help='Show only subdomains matching the specified source(s)')
+    list_subdomains_parser.add_argument('--scope', help='Filter by scope', choices=['inscope', 'outscope'])
+    list_subdomains_parser.add_argument('--resolved', choices=['yes', 'no'], help='Filter by resolved status')
+    list_subdomains_parser.add_argument('--cdn_status', choices=['yes', 'no'], help='Filter by cdn_status status')
+    list_subdomains_parser.add_argument('--ip', help='Filter by IP address')
+    list_subdomains_parser.add_argument('--cdn_name', help='Filter by CDN provider name')
+    list_subdomains_parser.add_argument('--brief', action='store_true', help='Show only subdomain names')
+    list_subdomains_parser.add_argument('--create_time', help='Filter by creation time (e.g., 2024-09-29 or 2024-09). Supports time ranges (e.g., 2023-12-03-12:30,2024-03-10-12:30)')
+    list_subdomains_parser.add_argument('--update_time', help='Filter by last update time (e.g., 2024-09-29 or 2024-09). Supports time ranges (e.g., 2023,2024)')
+
+
+    # Adding subcommands for subdomain actions
+    delete_subdomain_parser = subdomain_action_parser.add_parser('delete', help='Delete subdomains')
+    delete_subdomain_parser.add_argument('subdomain', help='Subdomain to delete (use * to delete all)')
+    delete_subdomain_parser.add_argument('domain', help='Domain name')
+    delete_subdomain_parser.add_argument('workspace', help='Workspace name')
+    delete_subdomain_parser.add_argument('--resolved', help='Filter by resolved status', choices=['yes', 'no'])
+    delete_subdomain_parser.add_argument('--source', help='Filter by source')
+    delete_subdomain_parser.add_argument('--scope', help='Filter by scope', choices=['inscope', 'outscope'])
+    delete_subdomain_parser.add_argument('--ip', help='Filter by IP address')
+    delete_subdomain_parser.add_argument('--cdn_status', help='Filter by cdn_status', choices=['yes', 'no'])
+    delete_subdomain_parser.add_argument('--cdn_name', help='Filter by CDN name')
+    
     live_parser = sub_parser.add_parser('live', help='Manage live subdomains')
     live_action_parser = live_parser.add_subparsers(dest='action')
     
@@ -1114,7 +1195,7 @@ def main():
     delete_live_subdomain_parser.add_argument('--update_time', help='Filter by last update time (e.g., 2024-09-29 or 2024-09). Supports time ranges (e.g., 2023,2024)')
 
     args = parser.parse_args()
-    
+
     # Handle commands
     if args.command == 'workspace':
         if args.action == 'create':
