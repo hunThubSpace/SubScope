@@ -440,7 +440,7 @@ def list_subdomains(subdomain='*', domain='*', workspace='*', sources=None, scop
 
     # Add filtering for workspace if not '*'
     if workspaces_to_query:
-        query += "WHERE workspace IN (" + ",".join(["?"] * len(workspaces_to_query)) + ")"
+        query += " WHERE workspace IN (" + ",".join(["?"] * len(workspaces_to_query)) + ")"
         parameters.extend(workspaces_to_query)
 
     # Handle wildcard for domain and subdomain
@@ -463,38 +463,38 @@ def list_subdomains(subdomain='*', domain='*', workspace='*', sources=None, scop
 
     # Add filtering for scope
     if scope:
-        query += " AND scope = ?"
+        query += " AND scope = ?" if 'WHERE' in query else " WHERE scope = ?"
         parameters.append(scope)
 
     # Add filtering for resolved status
     if resolved:
-        query += " AND resolved = ?"
+        query += " AND resolved = ?" if 'WHERE' in query else " WHERE resolved = ?"
         parameters.append(resolved)
 
     # Add filtering for cdn_status
     if cdn_status:
-        query += " AND cdn_status = ?"
+        query += " AND cdn_status = ?" if 'WHERE' in query else " WHERE cdn_status = ?"
         parameters.append(cdn_status)
 
     # Add filtering for ip_address
     if ip:
-        query += " AND ip_address = ?"
+        query += " AND ip_address = ?" if 'WHERE' in query else " WHERE ip_address = ?"
         parameters.append(ip)
 
     # Add filtering for cdn_name
     if cdn_name:
-        query += " AND cdn_name = ?"
+        query += " AND cdn_name = ?" if 'WHERE' in query else " WHERE cdn_name = ?"
         parameters.append(cdn_name)
 
     # Parse create_time and update_time and add time range filters
     if create_time:
         start_time, end_time = parse_time_range(create_time)
-        query += " AND created_at BETWEEN ? AND ?"
+        query += " AND created_at BETWEEN ? AND ?" if 'WHERE' in query else " WHERE created_at BETWEEN ? AND ?"
         parameters.extend([start_time, end_time])
 
     if update_time:
         start_time, end_time = parse_time_range(update_time)
-        query += " AND updated_at BETWEEN ? AND ?"
+        query += " AND updated_at BETWEEN ? AND ?" if 'WHERE' in query else " WHERE updated_at BETWEEN ? AND ?"
         parameters.extend([start_time, end_time])
 
     # Execute the query
