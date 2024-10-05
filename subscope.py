@@ -916,74 +916,78 @@ def delete_live_subdomain(url='*', subdomain='*', domain='*', workspace='*', sco
             return
 
     # Start building the delete query
-    query = "DELETE FROM live WHERE workspace = ?" if workspace != '*' else "DELETE FROM live"
+    query = "DELETE FROM live"
     params = []
+    filters = []
 
+    # Handle filtering for each parameter
     if workspace != '*':
+        filters.append("workspace = ?")
         params.append(workspace)
 
-    # Handle wildcards
     if subdomain != '*':
-        query += " AND subdomain = ?"
+        filters.append("subdomain = ?")
         params.append(subdomain)
 
     if domain != '*':
-        query += " AND domain = ?"
+        filters.append("domain = ?")
         params.append(domain)
 
     if url != '*':
-        query += " AND url = ?"
+        filters.append("url = ?")
         params.append(url)
 
-    # Add filtering for scope if provided
     if scope:
-        query += " AND scope = ?"
+        filters.append("scope = ?")
         params.append(scope)
 
-    # Add filtering for each optional parameter
     if scheme:
-        query += " AND scheme = ?"
+        filters.append("scheme = ?")
         params.append(scheme)
 
     if method:
-        query += " AND method = ?"
+        filters.append("method = ?")
         params.append(method)
 
     if port:
-        query += " AND port = ?"
+        filters.append("port = ?")
         params.append(port)
 
     if status_code:
-        query += " AND status_code = ?"
+        filters.append("status_code = ?")
         params.append(status_code)
 
     if ip_address:
-        query += " AND ip_address = ?"
+        filters.append("ip_address = ?")
         params.append(ip_address)
 
     if cdn_status:
-        query += " AND cdn_status = ?"
+        filters.append("cdn_status = ?")
         params.append(cdn_status)
 
     if cdn_name:
-        query += " AND cdn_name = ?"
+        filters.append("cdn_name = ?")
         params.append(cdn_name)
 
     if title:
-        query += " AND title = ?"
+        filters.append("title = ?")
         params.append(title)
 
     if webserver:
-        query += " AND webserver = ?"
+        filters.append("webserver = ?")
         params.append(webserver)
 
     if webtech:
-        query += " AND webtech = ?"
+        filters.append("webtech = ?")
         params.append(webtech)
 
     if cname:
-        query += " AND cname = ?"
+        filters.append("cname = ?")
         params.append(cname)
+
+    # Add the filters to the query if there are any
+    if filters:
+        query += " WHERE " + " AND ".join(filters)
 
     # Execute the delete query
     cursor.execute(query, params)
