@@ -323,7 +323,6 @@ options:
   ➜ ./subscope.py subdomain delete www.tesla.com tesla.com tesla_wk
 
   2024-10-05 18:29:43 | success | deleting subdomain | deleted 1 matching entries from subdomains table with filters: subdomain=www.tesla.com, domain=tesla.com, workspace=tesla_wk
-  2024-10-05 18:29:43 | success | deleting subdomain | deleted 1 matching entries from live table with filters: subdomain=www.tesla.com, domain=tesla.com, workspace=tesla_wk
   ```
 
 * Deleting all subdomains of a domain
