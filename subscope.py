@@ -383,6 +383,9 @@ def add_subdomain(subdomain_or_file, domain, workspace, sources=None, scope='out
                 if updated_sources != existing[3]:  # Check if sources have changed
                     update_fields['source'] = updated_sources
 
+            if scope != existing[4]:  # Assuming 4th column is 'scope'
+                update_fields['scope'] = scope
+
             if resolved != 'no' and resolved != existing[5]:  # Assuming 5th column is 'resolved'
                 update_fields['resolved'] = resolved
 
@@ -540,8 +543,8 @@ def list_subdomains(subdomain='*', domain='*', workspace='*', sources=None, scop
                 print(json.dumps(result, indent=4))
 
 def delete_subdomain(sub='*', domain='*', workspace='*', scope=None, source=None, resolved=None, ip_address=None, cdn_status=None, cdn_name=None):
-    # Function to delete subdomains and corresponding entries in the live table
-    def execute_delete(query, params, table):
+    # Function to delete subdomains from the subdomains table only
+    def execute_delete(query, params):
         cursor.execute(query, params)
         deleted_rows = cursor.rowcount  # Check how many rows were deleted
         conn.commit()
@@ -587,113 +590,102 @@ def delete_subdomain(sub='*', domain='*', workspace='*', scope=None, source=None
     if cdn_name:
         filter_msg += f", cdn_name={cdn_name}"
 
-    # Continue with the deletion process
-    tables = ['subdomains', 'live']
+    # Continue with the deletion process in the subdomains table
     total_deleted = 0  # Keep track of total deletions
-    live_deleted = 0   # Separate counter for live table deletions
 
-    for table in tables:
-        if sub == '*':
-            # Deleting all subdomains from all domains and workspaces
-            query = f"DELETE FROM {table} WHERE 1=1"
-            params = []
+    if sub == '*':
+        # Deleting all subdomains from all domains and workspaces
+        query = "DELETE FROM subdomains WHERE 1=1"
+        params = []
 
-            if domain != '*':
-                query += " AND domain = ?"
-                params.append(domain)
+        if domain != '*':
+            query += " AND domain = ?"
+            params.append(domain)
 
-            if workspace != '*':
-                query += " AND workspace = ?"
-                params.append(workspace)
+        if workspace != '*':
+            query += " AND workspace = ?"
+            params.append(workspace)
 
-            # Add filtering for source (only for subdomains table)
-            if table == 'subdomains' and source:
-                query += " AND source LIKE ?"
-                params.append(f"%{source}%")
+        # Add filtering for source
+        if source:
+            query += " AND source LIKE ?"
+            params.append(f"%{source}%")
 
-            # Add filtering for resolved status
-            if resolved:
-                query += " AND resolved = ?"
-                params.append(resolved)
+        # Add filtering for resolved status
+        if resolved:
+            query += " AND resolved = ?"
+            params.append(resolved)
 
-            # Add filtering for scope (only for subdomains table)
-            if table == 'subdomains' and scope:
-                query += " AND scope = ?"
-                params.append(scope)
+        # Add filtering for scope
+        if scope:
+            query += " AND scope = ?"
+            params.append(scope)
 
-            # Add filtering for IP address
-            if ip_address:
-                query += " AND ip_address = ?"
-                params.append(ip_address)
+        # Add filtering for IP address
+        if ip_address:
+            query += " AND ip_address = ?"
+            params.append(ip_address)
 
-            # Add filtering for cdn_status
-            if cdn_status:
-                query += " AND cdn_status = ?"
-                params.append(cdn_status)
+        # Add filtering for cdn_status
+        if cdn_status:
+            query += " AND cdn_status = ?"
+            params.append(cdn_status)
 
-            # Add filtering for CDN name
-            if cdn_name:
-                query += " AND cdn_name = ?"
-                params.append(cdn_name)
+        # Add filtering for CDN name
+        if cdn_name:
+            query += " AND cdn_name = ?"
+            params.append(cdn_name)
 
-            # Execute delete query for the table
-            deleted_rows = execute_delete(query, params, table)
-            total_deleted += deleted_rows
-            if table == 'live':
-                live_deleted += deleted_rows  # Track deletions from 'live' table
+        # Execute delete query for the subdomains table
+        total_deleted = execute_delete(query, params)
+        if total_deleted > 0:
+            print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting subdomain | deleted {total_deleted} matching entries from {Fore.BLUE}{Style.BRIGHT}subdomains{Style.RESET_ALL} table with filters: {Fore.BLUE}{Style.BRIGHT}{filter_msg}{Style.RESET_ALL}")
 
-            if deleted_rows > 0:
-                print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting subdomain | deleted {deleted_rows} matching entries from {Fore.BLUE}{Style.BRIGHT}{table}{Style.RESET_ALL} table with filters: {Fore.BLUE}{Style.BRIGHT}{filter_msg}{Style.RESET_ALL}")
+    else:
+        # Delete a single subdomain with optional filters
+        query = "DELETE FROM subdomains WHERE subdomain = ?"
+        params = [sub]
 
-        else:
-            # Delete a single subdomain with optional filters
-            query = f"DELETE FROM {table} WHERE subdomain = ?"
-            params = [sub]
+        if domain != '*':
+            query += " AND domain = ?"
+            params.append(domain)
 
-            if domain != '*':
-                query += " AND domain = ?"
-                params.append(domain)
+        if workspace != '*':
+            query += " AND workspace = ?"
+            params.append(workspace)
 
-            if workspace != '*':
-                query += " AND workspace = ?"
-                params.append(workspace)
+        # Add filtering for resolved status
+        if resolved:
+            query += " AND resolved = ?"
+            params.append(resolved)
 
-            # Add filtering for resolved status (subdomains table only)
-            if resolved:
-                query += " AND resolved = ?"
-                params.append(resolved)
+        # Add filtering for scope
+        if scope:
+            query += " AND scope = ?"
+            params.append(scope)
 
-            # Add filtering for scope (subdomains table only)
-            if table == 'subdomains' and scope:
-                query += " AND scope = ?"
-                params.append(scope)
+        # Add filtering for IP address
+        if ip_address:
+            query += " AND ip_address = ?"
+            params.append(ip_address)
 
-            # Add filtering for IP address
-            if ip_address:
-                query += " AND ip_address = ?"
-                params.append(ip_address)
+        # Add filtering for cdn_status
+        if cdn_status:
+            query += " AND cdn_status = ?"
+            params.append(cdn_status)
 
-            # Add filtering for cdn_status
-            if cdn_status:
-                query += " AND cdn_status = ?"
-                params.append(cdn_status)
+        # Add filtering for CDN name
+        if cdn_name:
+            query += " AND cdn_name = ?"
+            params.append(cdn_name)
 
-            # Add filtering for CDN name
-            if cdn_name:
-                query += " AND cdn_name = ?"
-                params.append(cdn_name)
-
-            # Execute delete query for the table
-            deleted_rows = execute_delete(query, params, table)
-            total_deleted += deleted_rows
-            if table == 'live':
-                live_deleted += deleted_rows  # Track deletions from 'live' table
-
-            if deleted_rows > 0:
-                print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting subdomain | deleted {deleted_rows} matching entries from {Fore.BLUE}{Style.BRIGHT}{table}{Style.RESET_ALL} table with filters: {Fore.BLUE}{Style.BRIGHT}{filter_msg}{Style.RESET_ALL}")
+        # Execute delete query for the subdomains table
+        total_deleted = execute_delete(query, params)
+        if total_deleted > 0:
+            print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting subdomain | deleted {total_deleted} matching entries from {Fore.BLUE}{Style.BRIGHT}subdomains{Style.RESET_ALL} table with filters: {Fore.BLUE}{Style.BRIGHT}{filter_msg}{Style.RESET_ALL}")
 
     if total_deleted == 0:
-        print(f"{timestamp} | {Fore.YELLOW}info{Style.RESET_ALL} | deleting subdomain | no subdomains were deleted from subdomains table with filters: {Fore.BLUE}{Style.BRIGHT}{filter_msg}{Style.RESET_ALL}")
+        print(f"{timestamp} | {Fore.YELLOW}info{Style.RESET_ALL} | deleting subdomain | no subdomains were deleted with filters: {Fore.BLUE}{Style.BRIGHT}{filter_msg}{Style.RESET_ALL}")
 
 def add_live_subdomain(url, subdomain, domain, workspace, scheme=None, method=None, port=None, status_code=None, scope=None, ip_address=None, cdn_status=None, cdn_name=None, title=None, webserver=None, webtech=None, cname=None):
     # Custom timestamp format
