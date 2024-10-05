@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS live (
     webserver TEXT,
     webtech TEXT,
     cname TEXT,
+    location TEXT,
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
     PRIMARY KEY(url, subdomain, domain, workspace)
@@ -687,7 +688,7 @@ def delete_subdomain(sub='*', domain='*', workspace='*', scope=None, source=None
     if total_deleted == 0:
         print(f"{timestamp} | {Fore.YELLOW}info{Style.RESET_ALL} | deleting subdomain | no subdomains were deleted with filters: {Fore.BLUE}{Style.BRIGHT}{filter_msg}{Style.RESET_ALL}")
 
-def add_live_subdomain(url, subdomain, domain, workspace, scheme=None, method=None, port=None, status_code=None, scope=None, ip_address=None, cdn_status=None, cdn_name=None, title=None, webserver=None, webtech=None, cname=None):
+def add_live_subdomain(url, subdomain, domain, workspace, scheme=None, method=None, port=None, status_code=None, scope=None, ip_address=None, cdn_status=None, cdn_name=None, title=None, webserver=None, webtech=None, cname=None, location=None):
     # Custom timestamp format
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -702,7 +703,7 @@ def add_live_subdomain(url, subdomain, domain, workspace, scheme=None, method=No
     if not cursor.fetchone():
         print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding live subdomain | domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} does not exist in workspace '{workspace}'")
         return
-    
+
     # Check if the subdomain exists
     cursor.execute("SELECT * FROM subdomains WHERE subdomain = ? AND domain = ? AND workspace = ?", (subdomain, domain, workspace))
     if not cursor.fetchone():
@@ -714,64 +715,55 @@ def add_live_subdomain(url, subdomain, domain, workspace, scheme=None, method=No
     existing = cursor.fetchone()
 
     update_fields = {}
-    
+
     if existing:
         # Subdomain exists, check for updates
-        if scheme is not None and scheme != existing[4]:  # Scheme (5th column)
+        if scheme is not None and scheme != existing[4]:
             update_fields['scheme'] = scheme
-
-        if method is not None and method != existing[5]:  # Method (6th column)
+        if method is not None and method != existing[5]:
             update_fields['method'] = method
-
-        if port is not None and port != existing[6]:  # Port (7th column)
+        if port is not None and port != existing[6]:
             update_fields['port'] = port
-
-        if status_code is not None and status_code != existing[7]:  # Status code (8th column)
+        if status_code is not None and status_code != existing[7]:
             update_fields['status_code'] = status_code
-
-        if scope is not None and scope != existing[8]:  # Scope (new 9th column)
+        if scope is not None and scope != existing[8]:
             update_fields['scope'] = scope
-
-        if ip_address is not None and ip_address != existing[9]:  # IP Address (10th column)
+        if ip_address is not None and ip_address != existing[9]:
             update_fields['ip_address'] = ip_address
-
-        if cdn_status is not None and cdn_status != existing[10]:  # CDN Status (11th column)
+        if cdn_status is not None and cdn_status != existing[10]:
             update_fields['cdn_status'] = cdn_status
-
-        if cdn_name is not None and cdn_name != existing[11]:  # CDN Name (12th column)
+        if cdn_name is not None and cdn_name != existing[11]:
             update_fields['cdn_name'] = cdn_name
-
-        if title is not None and title != existing[12]:  # Title (13th column)
+        if title is not None and title != existing[12]:
             update_fields['title'] = title
-
-        if webserver is not None and webserver != existing[13]:  # Webserver (14th column)
+        if webserver is not None and webserver != existing[13]:
             update_fields['webserver'] = webserver
-
-        if webtech is not None and webtech != existing[14]:  # Webtech (15th column)
+        if webtech is not None and webtech != existing[14]:
             update_fields['webtech'] = webtech
-
-        if cname is not None and cname != existing[15]:  # CNAME (16th column)
+        if cname is not None and cname != existing[15]:
             update_fields['cname'] = cname
+        if location is not None and location != existing[16]:
+            update_fields['location'] = location
 
-        # Always update the timestamp when we modify the entry
+        # Always update the timestamp
         if update_fields:
             update_query = "UPDATE live SET " + ", ".join(f"{col} = ?" for col in update_fields) + ", updated_at = ? WHERE url = ? AND subdomain = ? AND domain = ? AND workspace = ?"
             cursor.execute(update_query, (*update_fields.values(), timestamp, url, subdomain, domain, workspace))
             conn.commit()
             print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | updating live subdomain | live url {Fore.BLUE}{Style.BRIGHT}{url}{Style.RESET_ALL} in subdomain {Fore.BLUE}{Style.BRIGHT}{subdomain}{Style.RESET_ALL} in domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} in workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} with updates: {Fore.BLUE}{Style.BRIGHT}{update_fields}{Style.RESET_ALL}")
         else:
-            print(f"{timestamp} | {Fore.YELLOW}info{Style.RESET_ALL} | updating live subdomain | No any update for live url {Fore.BLUE}{Style.BRIGHT}{url}{Style.RESET_ALL} in subdomain {Fore.BLUE}{Style.BRIGHT}{subdomain}{Style.RESET_ALL} in domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} in workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL}")
+            print(f"{timestamp} | {Fore.YELLOW}info{Style.RESET_ALL} | updating live subdomain | No update for live url {Fore.BLUE}{Style.BRIGHT}{url}{Style.RESET_ALL}")
     else:
-        # Subdomain does not exist, insert it
+        # Insert new live subdomain
         cursor.execute(""" 
-            INSERT INTO live (url, subdomain, domain, workspace, scheme, method, port, status_code, scope, ip_address, cdn_status, cdn_name, title, webserver, webtech, cname, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
+            INSERT INTO live (url, subdomain, domain, workspace, scheme, method, port, status_code, scope, ip_address, cdn_status, cdn_name, title, webserver, webtech, cname, location, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (url, subdomain, domain, workspace, 
              scheme if scheme is not None else None, 
              method if method is not None else None, 
              port if port is not None else None, 
              status_code if status_code is not None else None, 
-             scope if scope is not None else None,  # New scope parameter
+             scope if scope is not None else None,  
              ip_address if ip_address is not None else None, 
              cdn_status if cdn_status is not None else None, 
              cdn_name if cdn_name is not None else None, 
@@ -779,15 +771,17 @@ def add_live_subdomain(url, subdomain, domain, workspace, scheme=None, method=No
              webserver if webserver is not None else None, 
              webtech if webtech is not None else None, 
              cname if cname is not None else None, 
+             location if location is not None else None,  # Add location in insert
              timestamp, timestamp))
         
         conn.commit()
-        print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | adding live subdomain | live url {Fore.BLUE}{Style.BRIGHT}{url}{Style.RESET_ALL} added to subdomain {Fore.BLUE}{Style.BRIGHT}{subdomain}{Style.RESET_ALL} in domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} in workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} with details: scheme={Fore.BLUE}{Style.BRIGHT}{scheme}{Style.RESET_ALL}, method={Fore.BLUE}{Style.BRIGHT}{method}{Style.RESET_ALL}, port={Fore.BLUE}{Style.BRIGHT}{port}{Style.RESET_ALL}, status_code={Fore.BLUE}{Style.BRIGHT}{status_code}{Style.RESET_ALL}, scope={Fore.BLUE}{Style.BRIGHT}{scope}{Style.RESET_ALL}, cdn_status={Fore.BLUE}{Style.BRIGHT}{cdn_status}{Style.RESET_ALL}, cdn_name={Fore.BLUE}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}, title={Fore.BLUE}{Style.BRIGHT}{title}{Style.RESET_ALL}, webserver={Fore.BLUE}{Style.BRIGHT}{webserver}{Style.RESET_ALL}, webtech={Fore.BLUE}{Style.BRIGHT}{webtech}{Style.RESET_ALL}, cname={Fore.BLUE}{Style.BRIGHT}{cname}{Style.RESET_ALL}")
+        print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | adding live subdomain | live url {Fore.BLUE}{Style.BRIGHT}{url}{Style.RESET_ALL} added to subdomain {Fore.BLUE}{Style.BRIGHT}{subdomain}{Style.RESET_ALL} in domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} in workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} with details: scheme={Fore.BLUE}{Style.BRIGHT}{scheme}{Style.RESET_ALL}, method={Fore.BLUE}{Style.BRIGHT}{method}{Style.RESET_ALL}, port={Fore.BLUE}{Style.BRIGHT}{port}{Style.RESET_ALL}, status_code={Fore.BLUE}{Style.BRIGHT}{status_code}{Style.RESET_ALL}, location={Fore.BLUE}{Style.BRIGHT}{location}{Style.RESET_ALL}, scope={Fore.BLUE}{Style.BRIGHT}{scope}{Style.RESET_ALL}, cdn_status={Fore.BLUE}{Style.BRIGHT}{cdn_status}{Style.RESET_ALL}, cdn_name={Fore.BLUE}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}, title={Fore.BLUE}{Style.BRIGHT}{title}{Style.RESET_ALL}, webserver={Fore.BLUE}{Style.BRIGHT}{webserver}{Style.RESET_ALL}, webtech={Fore.BLUE}{Style.BRIGHT}{webtech}{Style.RESET_ALL}, cname={Fore.BLUE}{Style.BRIGHT}{cname}{Style.RESET_ALL}")
+
  
 def list_live_subdomain(url='*', subdomain='*', domain='*', workspace='*', scheme=None, method=None, port=None, 
                          status_code=None, ip=None, cdn_status=None, cdn_name=None, title=None, 
                          webserver=None, webtech=None, cname=None, create_time=None, update_time=None, 
-                         brief=False, scope=None):
+                         brief=False, scope=None, location=None):
     # Check if the workspace exists if workspace is not '*'
     if workspace != '*':
         cursor.execute("SELECT * FROM workspaces WHERE workspace = ?", (workspace,))
@@ -872,6 +866,10 @@ def list_live_subdomain(url='*', subdomain='*', domain='*', workspace='*', schem
     if cname:
         query += " AND cname = ?" if 'WHERE' in query else " WHERE cname = ?"
         parameters.append(cname)
+    
+    if location:
+        query += " AND location = ?" if 'WHERE' in query else " WHERE location = ?"
+        parameters.append(location)
 
     # Parse create_time and update_time and add time range filters
     if create_time:
@@ -1144,6 +1142,8 @@ def main():
     add_live_subdomain_parser.add_argument('--webserver', help='Web server type (e.g. nginx)')
     add_live_subdomain_parser.add_argument('--webtech', help='Web technologies (comma-separated)')
     add_live_subdomain_parser.add_argument('--cname', help='CNAME of the live subdomain')
+    add_live_subdomain_parser.add_argument('--location', help='Physical location or data center of the live subdomain')
+
 
 
     # Add live subdomain list action
@@ -1275,7 +1275,8 @@ def main():
                 webserver=args.webserver,
                 webtech=args.webtech, 
                 cname=args.cname,
-                scope=args.scope  # Added scope argument
+                scope=args.scope,
+                location=args.location
             )
         elif args.action == 'list':
             list_live_subdomain(
@@ -1297,7 +1298,8 @@ def main():
                 create_time=args.create_time,
                 update_time=args.update_time,
                 brief=args.brief,
-                scope=args.scope
+                scope=args.scope,
+                location=args.location
             )
         elif args.action == 'delete':
             delete_live_subdomain(
