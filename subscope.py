@@ -786,13 +786,13 @@ def list_live_subdomain(url='*', subdomain='*', domain='*', workspace='*', schem
     if workspace != '*':
         cursor.execute("SELECT * FROM workspaces WHERE workspace = ?", (workspace,))
         if not cursor.fetchone():
-            print(f"{Fore.RED}{Style.BRIGHT}[-ER]{Style.RESET_ALL} Workspace '{workspace}' does not exist")
+            print(f"{timestamp} | {Fore.REDE}error{Style.RESET_ALL} | listing live subdomain | Workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} does not exist")
             return
 
     # Base query for live subdomains
     query = """
         SELECT url, subdomain, domain, workspace, scheme, method, port, status_code, ip_address, cdn_status, 
-               cdn_name, title, webserver, webtech, cname, created_at, updated_at 
+               cdn_name, title, webserver, webtech, cname, location, created_at, updated_at 
         FROM live
     """
     parameters = []
@@ -896,7 +896,7 @@ def list_live_subdomain(url='*', subdomain='*', domain='*', workspace='*', schem
                     "url": sub[0], "subdomain": sub[1], "domain": sub[2], "workspace": sub[3], "scheme": sub[4],
                     "method": sub[5], "port": sub[6], "status_code": sub[7], "ip": sub[8], "cdn_status": sub[9],
                     "cdn_name": sub[10], "title": sub[11], "webserver": sub[12], "webtech": sub[13], "cname": sub[14],
-                    "created_at": sub[15], "updated_at": sub[16]
+                    "location": sub[15], "created_at": sub[16], "updated_at": sub[17]
                 }
                 for sub in live_subdomains
             ]
@@ -1142,7 +1142,7 @@ def main():
     add_live_subdomain_parser.add_argument('--webserver', help='Web server type (e.g. nginx)')
     add_live_subdomain_parser.add_argument('--webtech', help='Web technologies (comma-separated)')
     add_live_subdomain_parser.add_argument('--cname', help='CNAME of the live subdomain')
-    add_live_subdomain_parser.add_argument('--location', help='Physical location or data center of the live subdomain')
+    add_live_subdomain_parser.add_argument('--location', help='Redirect location')
 
 
 
@@ -1166,7 +1166,8 @@ def main():
     list_live_subdomain_parser.add_argument('--create_time', help='Filter by creation time (e.g., 2024-09-29 or 2024-09). Supports time ranges (e.g., 2023-12-03-12:30,2024-03-10-12:30)')
     list_live_subdomain_parser.add_argument('--update_time', help='Filter by last update time (e.g., 2024-09-29 or 2024-09). Supports time ranges (e.g., 2023,2024)')
     list_live_subdomain_parser.add_argument('--brief', action='store_true', help='Show only subdomain names (brief output)')
-    list_live_subdomain_parser.add_argument('--scope', help='Filter by scope')  # New scope filter
+    list_live_subdomain_parser.add_argument('--scope', help='Filter by scope')
+    list_live_subdomain_parser.add_argument('--location', help='Filter by redirect locaiton')
 
 
     # Adding subcommands for live subdomain actions
