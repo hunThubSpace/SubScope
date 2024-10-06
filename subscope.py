@@ -88,93 +88,132 @@ CREATE TABLE IF NOT EXISTS ip (
 ''')
 
 def create_workspace(workspace):
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Format: YYYY-MM-DD HH:MM:SS
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Check if the workspace already exists
-    cursor.execute("SELECT * FROM workspaces WHERE workspace = ?", (workspace,))
-    existing_workspace = cursor.fetchone()
+    try:
+        # Check if the workspace already exists with a COUNT query for efficiency
+        cursor.execute("SELECT COUNT(1) FROM workspaces WHERE workspace = ?", (workspace,))
+        exists = cursor.fetchone()[0]
 
-    if existing_workspace:
-        print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding workspace | workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} already exists")
-        return
+        if exists:
+            print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding workspace | workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} already exists")
+            return
 
-    # If the workspace does not exist, create a new one
-    cursor.execute("INSERT INTO workspaces (workspace, created_at) VALUES (?, ?)", (workspace, timestamp))
-    conn.commit()
-    print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | adding workspace | workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} created")
-
-def list_workspaces(workspace='*', brief=False):
-    if workspace == '*':
-        cursor.execute("SELECT workspace, created_at FROM workspaces")
-    else:
-        cursor.execute("SELECT workspace, created_at FROM workspaces WHERE workspace = ?", (workspace,))
-    
-    workspaces = cursor.fetchall()
-
-    # If no workspaces exist, return early
-    if not workspaces:
-        return
-
-    if brief:
-        for ws in workspaces:
-            print(ws[0])  # Print each workspace name in brief mode
-    else:
-        workspace_list = [{'workspace': ws[0], 'created_at': ws[1]} for ws in workspaces]
-        print(json.dumps({"workspaces": workspace_list}, indent=4))
-
-def delete_workspace(workspace):
-    if workspace == '*':
-        # Count current entries before deletion
-        cursor.execute("SELECT COUNT(*) FROM live")
-        url_count = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT COUNT(*) FROM subdomains")
-        subdomain_count = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT COUNT(*) FROM domains")
-        domain_count = cursor.fetchone()[0]
-
-        cursor.execute("SELECT COUNT(*) FROM workspaces")
-        workspace_count = cursor.fetchone()[0]
-
-        cursor.execute("DELETE FROM live")
-        cursor.execute("DELETE FROM subdomains")
-        cursor.execute("DELETE FROM domains")
-        cursor.execute("DELETE FROM workspaces")
-        
+        # If the workspace does not exist, create a new one
+        cursor.execute("INSERT INTO workspaces (workspace, created_at) VALUES (?, ?)", (workspace, timestamp))
         conn.commit()
 
-        # Provide counts of deleted entries
-        if workspace_count == 0:
-            print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | deleting workspace | workspace table is empty")
+        print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | adding workspace | workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} created")
+
+    except sqlite3.DatabaseError as e:
+        print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding workspace | database error: {e}")
+
+def list_workspaces(workspace='*', brief=False, count=False):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # For potential logging
+    try:
+        # Fetch workspaces from the database
+        if workspace == '*':
+            cursor.execute("SELECT workspace, created_at FROM workspaces")
         else:
-            print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting workspace | deleted {Fore.BLUE}{Style.BRIGHT}{workspace_count}{Style.RESET_ALL} workspaces, {Fore.BLUE}{Style.BRIGHT}{domain_count}{Style.RESET_ALL} domains, {Fore.BLUE}{Style.BRIGHT}{subdomain_count}{Style.RESET_ALL} subdomains and {Fore.BLUE}{Style.BRIGHT}{url_count}{Style.RESET_ALL} urls")
-        return
+            cursor.execute("SELECT workspace, created_at FROM workspaces WHERE workspace = ?", (workspace,))
+        
+        workspaces = cursor.fetchall()
 
-    # Check if the specified workspace exists
-    cursor.execute("SELECT * FROM workspaces WHERE workspace = ?", (workspace,))
-    if not cursor.fetchone():
-        print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | deleting Workspace | workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} does not exists")
-        return
+        # If no workspaces exist, display a message
+        if not workspaces:
+            print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | listing workspace | workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} not found")
+            return
 
-    # Count entries before deletion
-    cursor.execute("SELECT COUNT(*) FROM live WHERE workspace = ?", (workspace,))
-    url_count = cursor.fetchone()[0]
-    
-    cursor.execute("SELECT COUNT(*) FROM subdomains WHERE workspace = ?", (workspace,))
-    subdomain_count = cursor.fetchone()[0]
-    
-    cursor.execute("SELECT COUNT(*) FROM domains WHERE workspace = ?", (workspace,))
-    domain_count = cursor.fetchone()[0]
+        # Handle counting records
+        if count:
+            count_result = len(workspaces)
+            print(count_result)
+            return
 
-    cursor.execute("DELETE FROM live WHERE workspace = ?", (workspace,))
-    cursor.execute("DELETE FROM subdomains WHERE workspace = ?", (workspace,))
-    cursor.execute("DELETE FROM domains WHERE workspace = ?", (workspace,))
-    cursor.execute("DELETE FROM workspaces WHERE workspace = ?", (workspace,))
-    
-    conn.commit()
+        # Brief mode: print only workspace names
+        if brief:
+            for ws in workspaces:
+                print(ws[0])  # Print each workspace name in brief mode
+        else:
+            # Detailed mode: print workspace with created_at as JSON
+            workspace_list = [{'workspace': ws[0], 'created_at': ws[1]} for ws in workspaces]
+            print(json.dumps({"workspaces": workspace_list}, indent=4))
 
-    print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting workspace | workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} deleted with {Fore.BLUE}{Style.BRIGHT}{domain_count}{Style.RESET_ALL} domains, {Fore.BLUE}{Style.BRIGHT}{subdomain_count}{Style.RESET_ALL} subdomains and {Fore.BLUE}{Style.BRIGHT}{url_count}{Style.RESET_ALL} urls")
+    except sqlite3.DatabaseError as e:
+        print(f"{Fore.RED}error{Style.RESET_ALL} | listing workspaces | database error: {e}")
+
+def delete_workspace(workspace):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Timestamp for logging
+
+    def count_entries(workspace=None):
+        """Helper function to count entries in live, subdomains, domains, and workspaces."""
+        if workspace == '*':
+            cursor.execute("SELECT COUNT(*) FROM live")
+            url_count = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM subdomains")
+            subdomain_count = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM domains")
+            domain_count = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM workspaces")
+            workspace_count = cursor.fetchone()[0]
+        else:
+            cursor.execute("SELECT COUNT(*) FROM live WHERE workspace = ?", (workspace,))
+            url_count = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM subdomains WHERE workspace = ?", (workspace,))
+            subdomain_count = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM domains WHERE workspace = ?", (workspace,))
+            domain_count = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM workspaces WHERE workspace = ?", (workspace,))
+            workspace_count = 1 if cursor.fetchone() else 0
+
+        return workspace_count, domain_count, subdomain_count, url_count
+
+    try:
+        # Bulk delete all workspaces
+        if workspace == '*':
+            workspace_count, domain_count, subdomain_count, url_count = count_entries('*')
+
+            if workspace_count == 0:
+                print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | deleting workspace | workspace table is empty")
+                return
+
+            cursor.execute("DELETE FROM live")
+            cursor.execute("DELETE FROM subdomains")
+            cursor.execute("DELETE FROM domains")
+            cursor.execute("DELETE FROM workspaces")
+            conn.commit()
+
+            print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting workspace | deleted {Fore.BLUE}{Style.BRIGHT}{workspace_count}{Style.RESET_ALL} workspaces, "
+                  f"{Fore.BLUE}{Style.BRIGHT}{domain_count}{Style.RESET_ALL} domains, {Fore.BLUE}{Style.BRIGHT}{subdomain_count}{Style.RESET_ALL} subdomains, "
+                  f"and {Fore.BLUE}{Style.BRIGHT}{url_count}{Style.RESET_ALL} urls")
+            return
+
+        # Delete a specific workspace
+        cursor.execute("SELECT * FROM workspaces WHERE workspace = ?", (workspace,))
+        if not cursor.fetchone():
+            print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | deleting workspace | workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} does not exist")
+            return
+
+        workspace_count, domain_count, subdomain_count, url_count = count_entries(workspace)
+
+        cursor.execute("DELETE FROM live WHERE workspace = ?", (workspace,))
+        cursor.execute("DELETE FROM subdomains WHERE workspace = ?", (workspace,))
+        cursor.execute("DELETE FROM domains WHERE workspace = ?", (workspace,))
+        cursor.execute("DELETE FROM workspaces WHERE workspace = ?", (workspace,))
+        conn.commit()
+
+        print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting workspace | workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} deleted with "
+              f"{Fore.BLUE}{Style.BRIGHT}{domain_count}{Style.RESET_ALL} domains, {Fore.BLUE}{Style.BRIGHT}{subdomain_count}{Style.RESET_ALL} subdomains, "
+              f"and {Fore.BLUE}{Style.BRIGHT}{url_count}{Style.RESET_ALL} urls")
+
+    except sqlite3.DatabaseError as e:
+        print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | deleting workspace | database error: {e}")
 
 def add_domain(domain_or_file, workspace):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Format: YYYY-MM-DD HH:MM:SS
@@ -184,16 +223,14 @@ def add_domain(domain_or_file, workspace):
     existing_workspace = cursor.fetchone()
 
     if not existing_workspace:
-        print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding domain | workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} does not exists")
+        print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding domain | workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} does not exist")
         return
 
     # Check if the input is a file
     if os.path.isfile(domain_or_file):
-        # If a file is provided, read the domains from the file
         with open(domain_or_file, 'r') as file:
             domains = [line.strip() for line in file if line.strip()]
     else:
-        # Otherwise, treat it as a single domain
         domains = [domain_or_file]
 
     for domain in domains:
@@ -202,16 +239,18 @@ def add_domain(domain_or_file, workspace):
         existing_domain = cursor.fetchone()
 
         if existing_domain:
-                print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding domain | domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} aleady exists in {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} workspace")
+            print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding domain | domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} already exists in {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} workspace")
         else:
             try:
                 cursor.execute("INSERT INTO domains (domain, workspace, created_at) VALUES (?, ?, ?)", (domain, workspace, timestamp))
                 conn.commit()
                 print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | adding domain | domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} added to {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} workspace")
             except sqlite3.IntegrityError:
-                print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding domain | domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} aleady exists in {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} workspace")
+                print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding domain | domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} already exists in {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} workspace")
 
-def list_domains(domain='*', workspace='*', brief=False):
+def list_domains(domain='*', workspace='*', brief=False, count=False):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # For potential logging
+    
     # Check if the workspace is specific or all
     if workspace != '*':
         # Check if the workspace exists
@@ -222,9 +261,9 @@ def list_domains(domain='*', workspace='*', brief=False):
         
         # Fetch domains associated with the specific workspace
         if domain == '*':
-            cursor.execute("SELECT domain, created_at FROM domains WHERE workspace = ?", (workspace,))
+            cursor.execute("SELECT domain, workspace, created_at FROM domains WHERE workspace = ?", (workspace,))
         else:
-            cursor.execute("SELECT domain, created_at FROM domains WHERE workspace = ? AND domain = ?", (workspace, domain))
+            cursor.execute("SELECT domain, workspace, created_at FROM domains WHERE workspace = ? AND domain = ?", (workspace, domain))
     else:
         # Fetch all domains from all workspaces
         if domain == '*':
@@ -236,6 +275,13 @@ def list_domains(domain='*', workspace='*', brief=False):
 
     # Check if there are any domains to display
     if not domains:
+        print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | listing domain | no domains found")
+        return
+
+    # Handle counting records
+    if count:
+        count_result = len(domains)
+        print(count_result)
         return
 
     if brief:
@@ -244,13 +290,7 @@ def list_domains(domain='*', workspace='*', brief=False):
             print(domain[0])  # domain[0] will have the domain name
     else:
         # Create a list of domains including workspace information
-        domain_list = []
-        for domain in domains:
-            if workspace == '*':
-                domain_list.append({'domain': domain[0], 'workspace': domain[1], 'created_at': domain[2]})
-            else:
-                domain_list.append({'domain': domain[0], 'created_at': domain[1]})
-
+        domain_list = [{'domain': domain[0], 'workspace': domain[1], 'created_at': domain[2]} for domain in domains]
         print(json.dumps({"domains": domain_list}, indent=4))
 
 def delete_domain(domain='*', workspace='*'):
@@ -260,103 +300,65 @@ def delete_domain(domain='*', workspace='*'):
         if not cursor.fetchone():
             print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | deleting domain | workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} does not exist")
             return
-        
-    if domain == '*':
-        if workspace == '*':
-            cursor.execute("SELECT COUNT(*) FROM live")
-            url_count = cursor.fetchone()[0]
-            
-            cursor.execute("SELECT COUNT(*) FROM subdomains")
-            subdomain_count = cursor.fetchone()[0]
-            
-            cursor.execute("SELECT COUNT(*) FROM domains")
-            domain_count = cursor.fetchone()[0]
-            
-            # Delete all urls from all workspaces
-            cursor.execute("DELETE FROM live")
-            
-            # Delete all subdomains from all workspaces
-            cursor.execute("DELETE FROM subdomains")
-            
-            # Delete all domains from all workspaces
-            cursor.execute("DELETE FROM domains")
-            
-            conn.commit()
-            
-            if domain_count == 0:
-                print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | deleting domain | domain table is empty")
-            else:
-                print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting domain | deleted {Fore.BLUE}{Style.BRIGHT}{domain_count}{Style.RESET_ALL} domains, {Fore.BLUE}{Style.BRIGHT}{subdomain_count}{Style.RESET_ALL} subdomains and {Fore.BLUE}{Style.BRIGHT}{url_count}{Style.RESET_ALL} urls")
-        else:
-            cursor.execute("SELECT COUNT(*) FROM live WHERE workspace = ?", (workspace,))
-            url_count = cursor.fetchone()[0]
-            
-            cursor.execute("SELECT COUNT(*) FROM subdomains WHERE workspace = ?", (workspace,))
-            subdomain_count = cursor.fetchone()[0]
-            
-            cursor.execute("SELECT COUNT(*) FROM domains WHERE workspace = ?", (workspace,))
-            domain_count = cursor.fetchone()[0]
 
-            # Delete all urls from a specific workspace
-            cursor.execute("DELETE FROM live WHERE workspace = ?", (workspace,))
-            
-            # Delete all subdomains from a specific workspace
-            cursor.execute("DELETE FROM subdomains WHERE workspace = ?", (workspace,))
-            
-            # Delete all domains from a specific workspace
-            cursor.execute("DELETE FROM domains WHERE workspace = ?", (workspace,))
-            
-            conn.commit()
-            print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting domain | deleted {Fore.BLUE}{Style.BRIGHT}{domain_count}{Style.RESET_ALL} domains, {Fore.BLUE}{Style.BRIGHT}{subdomain_count}{Style.RESET_ALL} subdomains and {Fore.BLUE}{Style.BRIGHT}{url_count}{Style.RESET_ALL} urls")
+    if domain == '*':
+        # Deleting all records
+        counts = {
+            'urls': cursor.execute("SELECT COUNT(*) FROM live").fetchone()[0],
+            'subdomains': cursor.execute("SELECT COUNT(*) FROM subdomains").fetchone()[0],
+            'domains': cursor.execute("SELECT COUNT(*) FROM domains").fetchone()[0]
+        }
+        
+        cursor.execute("DELETE FROM live")
+        cursor.execute("DELETE FROM subdomains")
+        cursor.execute("DELETE FROM domains")
+        
+        conn.commit()
+        
+        if counts['domains'] == 0:
+            print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | deleting domain | domain table is empty")
+        else:
+            print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting domain | deleted {Fore.BLUE}{Style.BRIGHT}{counts['domains']}{Style.RESET_ALL} domains, {Fore.BLUE}{Style.BRIGHT}{counts['subdomains']}{Style.RESET_ALL} subdomains and {Fore.BLUE}{Style.BRIGHT}{counts['urls']}{Style.RESET_ALL} urls")
     else:
         if workspace == '*':
-            cursor.execute("SELECT COUNT(domain) FROM live WHERE domain = ?", (domain,))
-            url_count = cursor.fetchone()[0]
+            # Deleting records across all workspaces
+            counts = {
+                'urls': cursor.execute("SELECT COUNT(domain) FROM live WHERE domain = ?", (domain,)).fetchone()[0],
+                'subdomains': cursor.execute("SELECT COUNT(domain) FROM subdomains WHERE domain = ?", (domain,)).fetchone()[0],
+                'domains': cursor.execute("SELECT COUNT(domain) FROM domains WHERE domain = ?", (domain,)).fetchone()[0]
+            }
             
-            cursor.execute("SELECT COUNT(domain) FROM subdomains WHERE domain = ?", (domain,))
-            subdomain_count = cursor.fetchone()[0]
-            
-            cursor.execute("SELECT COUNT(domain) FROM domains WHERE domain = ?", (domain,))
-            domain_count = cursor.fetchone()[0]
-            
-            # Delete all urls associated with the domain across all workspaces
-            cursor.execute("DELETE FROM live WHERE domain = ?", (domain,))
-            
-            # Delete all subdomains associated with the domain across all workspaces
+            # Delete all subdomains associated with the domain
             cursor.execute("DELETE FROM subdomains WHERE domain = ?", (domain,))
-            
-            # Delete the domain itself from all workspaces
+            cursor.execute("DELETE FROM live WHERE domain = ?", (domain,))
             cursor.execute("DELETE FROM domains WHERE domain = ?", (domain,))
             
             conn.commit()
-            if domain_count == 0:
-                print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | deleting domain | domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} does not exists")
+            
+            if counts['domains'] == 0:
+                print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | deleting domain | domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} does not exist")
             else:
-                print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting domain | deleted {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} with {Fore.BLUE}{Style.BRIGHT}{subdomain_count}{Style.RESET_ALL} subdomains and {Fore.BLUE}{Style.BRIGHT}{url_count}{Style.RESET_ALL} urls")
+                print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting domain | deleted {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} with {Fore.BLUE}{Style.BRIGHT}{counts['subdomains']}{Style.RESET_ALL} subdomains and {Fore.BLUE}{Style.BRIGHT}{counts['urls']}{Style.RESET_ALL} urls")
         else:
-            
-            cursor.execute("SELECT COUNT(domain) FROM live WHERE domain = ? and workspace = ?", (domain, workspace,))
-            url_count = cursor.fetchone()[0]
-            
-            cursor.execute("SELECT COUNT(domain) FROM subdomains WHERE domain = ? and workspace = ?", (domain, workspace,))
-            subdomain_count = cursor.fetchone()[0]
-            
-            cursor.execute("SELECT COUNT(domain) FROM domains WHERE domain = ? and workspace = ?", (domain, workspace,))
-            domain_count = cursor.fetchone()[0]
+            # Deleting records in a specific workspace
+            counts = {
+                'urls': cursor.execute("SELECT COUNT(domain) FROM live WHERE domain = ? AND workspace = ?", (domain, workspace)).fetchone()[0],
+                'subdomains': cursor.execute("SELECT COUNT(domain) FROM subdomains WHERE domain = ? AND workspace = ?", (domain, workspace)).fetchone()[0],
+                'domains': cursor.execute("SELECT COUNT(domain) FROM domains WHERE domain = ? AND workspace = ?", (domain, workspace)).fetchone()[0]
+            }
 
             # Delete all subdomains associated with the domain in the specified workspace
             cursor.execute("DELETE FROM subdomains WHERE domain = ? AND workspace = ?", (domain, workspace))
-            
-            # Delete the domain itself from the specified workspace
             cursor.execute("DELETE FROM domains WHERE domain = ? AND workspace = ?", (domain, workspace))
             
             conn.commit()
-            if domain_count == 0:
-                print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | deleting domain | domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} does not exists")
+            
+            if counts['domains'] == 0:
+                print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | deleting domain | domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} does not exist")
             else:
-                print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting domain | deleted {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} from {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} with {Fore.BLUE}{Style.BRIGHT}{url_count}{Style.RESET_ALL} urls")
+                print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting domain | deleted {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} from {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} with {Fore.BLUE}{Style.BRIGHT}{counts['subdomains']}{Style.RESET_ALL} subdomains and {Fore.BLUE}{Style.BRIGHT}{counts['urls']}{Style.RESET_ALL} urls")
 
-def add_subdomain(subdomain_or_file, domain, workspace, sources=None, scope='outscope', resolved='no', ip_address='none', cdn_status='no', cdn_name='none'):
+def add_subdomain(subdomain_or_file, domain, workspace, sources=None, unsources=None, scope='outscope', resolved='no', ip_address='none', cdn_status='no', cdn_name='none', unip=None, uncdn_name=None):
     # Custom timestamp format
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -369,7 +371,7 @@ def add_subdomain(subdomain_or_file, domain, workspace, sources=None, scope='out
     # Check if the domain exists
     cursor.execute("SELECT * FROM domains WHERE domain = ? AND workspace = ?", (domain, workspace))
     if not cursor.fetchone():
-        print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding subdomain | workspace {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} does not exist")
+        print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding subdomain | domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} does not exist in workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL}")
         return
 
     # Check if the input is a file
@@ -399,6 +401,17 @@ def add_subdomain(subdomain_or_file, domain, workspace, sources=None, scope='out
                 if updated_sources != existing[3]:  # Check if sources have changed
                     update_fields['source'] = updated_sources
 
+            # Handle unsourcing
+            if unsources:
+                current_sources = existing[3].split(", ") if existing[3] else []
+                for unsource in unsources:
+                    unsource = unsource.strip()
+                    if unsource in current_sources:
+                        current_sources.remove(unsource)  # Remove specified source
+                updated_sources = ", ".join(current_sources) if current_sources else ""
+                if updated_sources != existing[3]:  # Check if sources have changed
+                    update_fields['source'] = updated_sources
+
             if scope != existing[4]:  # Assuming 4th column is 'scope'
                 update_fields['scope'] = scope
 
@@ -408,9 +421,17 @@ def add_subdomain(subdomain_or_file, domain, workspace, sources=None, scope='out
             if ip_address != 'none' and ip_address != existing[6]:  # Assuming 6th column is 'ip_address'
                 update_fields['ip_address'] = ip_address
             
+            # Handle removal of ip_address
+            if unip and existing[6] != 'none':  # Assuming 6th column is 'ip_address'
+                update_fields['ip_address'] = 'none'  # Set to 'none' to indicate removal
+
             if cdn_status != 'no' and cdn_status != existing[7]:  # Assuming 7th column is 'cdn_status'
                 update_fields['cdn_status'] = cdn_status
             
+            # Handle removal of cdn_name
+            if uncdn_name and existing[8] != 'none':  # Assuming 8th column is 'cdn_name'
+                update_fields['cdn_name'] = 'none'  # Set to 'none' to indicate removal
+
             if cdn_name != 'none' and cdn_name != existing[8]:  # Assuming 8th column is 'cdn_name'
                 update_fields['cdn_name'] = cdn_name
 
@@ -436,99 +457,96 @@ def add_subdomain(subdomain_or_file, domain, workspace, sources=None, scope='out
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
                 (subdomain, domain, workspace, new_source_str, scope, resolved, ip_address, cdn_status, cdn_name, timestamp, timestamp))
             conn.commit()
-            print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | adding subdomain | Subdomain {Fore.BLUE}{Style.BRIGHT}{subdomain}{Style.RESET_ALL} added to domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} in workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} with sources: {Fore.BLUE}{Style.BRIGHT}{new_source_str}{Style.RESET_ALL}, scope: {Fore.BLUE}{Style.BRIGHT}{scope}{Style.RESET_ALL}, resolved: {Fore.BLUE}{Style.BRIGHT}{resolved}{Style.RESET_ALL}, IP: {Fore.BLUE}{Style.BRIGHT}{ip_address}{Style.RESET_ALL}, cdn_status: {Fore.BLUE}{Style.BRIGHT}{cdn_status}{Style.RESET_ALL}, CDN Name: {Fore.BLUE}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}")
+            print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | adding subdomain | Subdomain {Fore.BLUE}{Style.BRIGHT}{subdomain}{Style.RESET_ALL} added to domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} in workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.BRIGHT} with sources: {Fore.BLUE}{Style.BRIGHT}{new_source_str}{Style.RESET_ALL}, scope: {Fore.BLUE}{Style.BRIGHT}{scope}{Style.RESET_ALL}, resolved: {Fore.BLUE}{Style.BRIGHT}{resolved}{Style.RESET_ALL}, IP: {Fore.BLUE}{Style.BRIGHT}{ip_address}{Style.RESET_ALL}, cdn_status: {Fore.BLUE}{Style.BRIGHT}{cdn_status}{Style.RESET_ALL}, CDN Name: {Fore.BLUE}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}")
 
-def list_subdomains(subdomain='*', domain='*', workspace='*', sources=None, scope=None, resolved=None, brief=False, source_only=False, cdn_status=None, ip=None, cdn_name=None, create_time=None, update_time=None):
-    # If workspace is '*', we won't filter by workspace
-    workspaces_to_query = []
-
+def list_subdomains(subdomain='*', domain='*', workspace='*', sources=None, scope=None, resolved=None, brief=False, source_only=False, cdn_status=None, ip=None, cdn_name=None, create_time=None, update_time=None, count=False):
+    # Check if workspace exists if specified
     if workspace != '*':
-        # Check if the workspace exists
         cursor.execute("SELECT * FROM workspaces WHERE workspace = ?", (workspace,))
         if not cursor.fetchone():
             print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | listing subdomain | workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} does not exist")
             return
-        workspaces_to_query.append(workspace)
 
-    # Base query
+    # Base query and parameters
     query = """
         SELECT subdomain, domain, source, scope, resolved, ip_address, cdn_status, cdn_name, created_at, updated_at, workspace 
         FROM subdomains 
     """
     parameters = []
+    filters = []
 
     # Add filtering for workspace if not '*'
-    if workspaces_to_query:
-        query += " WHERE workspace IN (" + ",".join(["?"] * len(workspaces_to_query)) + ")"
-        parameters.extend(workspaces_to_query)
+    if workspace != '*':
+        filters.append("workspace = ?")
+        parameters.append(workspace)
 
     # Handle wildcard for domain and subdomain
     if domain != '*':
-        query += " AND domain = ?" if 'WHERE' in query else " WHERE domain = ?"
+        filters.append("domain = ?")
         parameters.append(domain)
 
     if subdomain != '*':
-        query += " AND subdomain = ?" if 'WHERE' in query else " WHERE subdomain = ?"
+        filters.append("subdomain = ?")
         parameters.append(subdomain)
-
-    # If listing all subdomains for all domains and workspaces
-    if domain == '*' and subdomain == '*' and workspace == '*':
-        # We don't need to filter by workspace or any subdomain/domain
-        query = """
-            SELECT subdomain, domain, source, scope, resolved, ip_address, cdn_status, cdn_name, created_at, updated_at, workspace 
-            FROM subdomains
-        """
-        parameters = []  # No parameters needed since we're selecting everything
 
     # Add filtering for scope
     if scope:
-        query += " AND scope = ?" if 'WHERE' in query else " WHERE scope = ?"
+        filters.append("scope = ?")
         parameters.append(scope)
 
     # Add filtering for resolved status
     if resolved:
-        query += " AND resolved = ?" if 'WHERE' in query else " WHERE resolved = ?"
+        filters.append("resolved = ?")
         parameters.append(resolved)
 
     # Add filtering for cdn_status
     if cdn_status:
-        query += " AND cdn_status = ?" if 'WHERE' in query else " WHERE cdn_status = ?"
+        filters.append("cdn_status = ?")
         parameters.append(cdn_status)
 
     # Add filtering for ip_address
     if ip:
-        query += " AND ip_address = ?" if 'WHERE' in query else " WHERE ip_address = ?"
+        filters.append("ip_address = ?")
         parameters.append(ip)
 
     # Add filtering for cdn_name
     if cdn_name:
-        query += " AND cdn_name = ?" if 'WHERE' in query else " WHERE cdn_name = ?"
+        filters.append("cdn_name = ?")
         parameters.append(cdn_name)
 
     # Parse create_time and update_time and add time range filters
     if create_time:
         start_time, end_time = parse_time_range(create_time)
-        query += " AND created_at BETWEEN ? AND ?" if 'WHERE' in query else " WHERE created_at BETWEEN ? AND ?"
+        filters.append("created_at BETWEEN ? AND ?")
         parameters.extend([start_time, end_time])
 
     if update_time:
         start_time, end_time = parse_time_range(update_time)
-        query += " AND updated_at BETWEEN ? AND ?" if 'WHERE' in query else " WHERE updated_at BETWEEN ? AND ?"
+        filters.append("updated_at BETWEEN ? AND ?")
         parameters.extend([start_time, end_time])
+
+    # Construct final query with filters
+    if filters:
+        query += " WHERE " + " AND ".join(filters)
 
     # Execute the query
     cursor.execute(query, parameters)
     subdomains = cursor.fetchall()
 
-    if subdomains:
-        filtered_subdomains = []
+    # Handle counting records
+    if count:
+        count_result = len(subdomains)
+        print(count_result)
+        return
 
-        # Filter by source if provided
+    # Filter results by source if provided
+    filtered_subdomains = []
+    if subdomains:
         if sources:
-            for subdomain in subdomains:
-                subdomain_sources = [src.strip() for src in subdomain[2].split(',')]
+            for sub in subdomains:
+                subdomain_sources = [src.strip() for src in sub[2].split(',')]
                 if any(source in subdomain_sources for source in sources):
-                    filtered_subdomains.append(subdomain)
+                    filtered_subdomains.append(sub)
         else:
             filtered_subdomains = subdomains
 
@@ -536,6 +554,7 @@ def list_subdomains(subdomain='*', domain='*', workspace='*', sources=None, scop
         if source_only and sources:
             filtered_subdomains = [sub for sub in filtered_subdomains if sub[2].strip() == sources[0]]
 
+        # Output results
         if filtered_subdomains:
             if brief:
                 print("\n".join(sub[0] for sub in filtered_subdomains))
@@ -559,12 +578,8 @@ def list_subdomains(subdomain='*', domain='*', workspace='*', sources=None, scop
                 print(json.dumps(result, indent=4))
 
 def delete_subdomain(sub='*', domain='*', workspace='*', scope=None, source=None, resolved=None, ip_address=None, cdn_status=None, cdn_name=None):
-    # Function to delete subdomains from the subdomains table only
-    def execute_delete(query, params):
-        cursor.execute(query, params)
-        deleted_rows = cursor.rowcount  # Check how many rows were deleted
-        conn.commit()
-        return deleted_rows
+    # Custom timestamp format
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Check if workspace exists
     if workspace != '*':
@@ -653,7 +668,10 @@ def delete_subdomain(sub='*', domain='*', workspace='*', scope=None, source=None
             params.append(cdn_name)
 
         # Execute delete query for the subdomains table
-        total_deleted = execute_delete(query, params)
+        cursor.execute(query, params)
+        total_deleted = cursor.rowcount  # Get the count of deleted rows
+        conn.commit()
+
         if total_deleted > 0:
             print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting subdomain | deleted {total_deleted} matching entries from {Fore.BLUE}{Style.BRIGHT}subdomains{Style.RESET_ALL} table with filters: {Fore.BLUE}{Style.BRIGHT}{filter_msg}{Style.RESET_ALL}")
 
@@ -696,12 +714,16 @@ def delete_subdomain(sub='*', domain='*', workspace='*', scope=None, source=None
             params.append(cdn_name)
 
         # Execute delete query for the subdomains table
-        total_deleted = execute_delete(query, params)
+        cursor.execute(query, params)
+        total_deleted = cursor.rowcount  # Get the count of deleted rows
+        conn.commit()
+
         if total_deleted > 0:
             print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | deleting subdomain | deleted {total_deleted} matching entries from {Fore.BLUE}{Style.BRIGHT}subdomains{Style.RESET_ALL} table with filters: {Fore.BLUE}{Style.BRIGHT}{filter_msg}{Style.RESET_ALL}")
 
     if total_deleted == 0:
         print(f"{timestamp} | {Fore.YELLOW}info{Style.RESET_ALL} | deleting subdomain | no subdomains were deleted with filters: {Fore.BLUE}{Style.BRIGHT}{filter_msg}{Style.RESET_ALL}")
+
 
 def add_live_subdomain(url, subdomain, domain, workspace, scheme=None, method=None, port=None, status_code=None, scope=None, ip_address=None, cdn_status=None, cdn_name=None, title=None, webserver=None, webtech=None, cname=None, location=None):
     # Custom timestamp format
@@ -1293,6 +1315,8 @@ def main():
     list_workspaces_parser = workspace_action_parser.add_parser('list', help='List workspaces')
     list_workspaces_parser.add_argument('workspace', help="Workspace name or wildcard '*' for all workspaces")
     list_workspaces_parser.add_argument('--brief', action='store_true', help='Show only workspace names')
+    list_workspaces_parser.add_argument('--count', action='store_true', help='Count the number of returned records')
+
 
     workspace_action_parser.add_parser('delete', help='Delete a workspace').add_argument('workspace', help='Name of the workspace')
 
@@ -1308,6 +1332,8 @@ def main():
     list_domains_parser.add_argument('domain', help='Domain name (use "*" for all domains)')
     list_domains_parser.add_argument('workspace', help='Workspace name (use "*" for all workspaces)')
     list_domains_parser.add_argument('--brief', action='store_true', help='Show only domain names')
+    list_domains_parser.add_argument('--count', action='store_true', help='Count the number of returned records')
+
 
     delete_domain_parser = domain_action_parser.add_parser('delete', help='Delete a domain')
     delete_domain_parser.add_argument('domain', help='Domain name')
@@ -1322,11 +1348,15 @@ def main():
     add_subdomain_parser.add_argument('domain', help='Domain name')
     add_subdomain_parser.add_argument('workspace', help='Workspace name')
     add_subdomain_parser.add_argument('--source', nargs='*', help='Source(s) (comma-separated)')
+    add_subdomain_parser.add_argument('--unsource', nargs='*', help='Source(s) to remove (comma-separated)')
     add_subdomain_parser.add_argument('--scope', choices=['inscope', 'outscope'], default='inscope', help='Scope')
     add_subdomain_parser.add_argument('--resolved', choices=['yes', 'no'], default='no', help='Resolved status')
     add_subdomain_parser.add_argument('--ip', default='none', help='IP address of the subdomain')
+    add_subdomain_parser.add_argument('--unip', action='store_true', help='Remove IP address from the subdomain')
     add_subdomain_parser.add_argument('--cdn_status', default='no', choices=['yes', 'no'], help='CDN status')
     add_subdomain_parser.add_argument('--cdn_name', default='none', help='Name of the CDN provider')
+    add_subdomain_parser.add_argument('--uncdn_name', action='store_true', help='Remove CDN name from the subdomain')
+
 
     list_subdomains_parser = subdomain_action_parser.add_parser('list', help='List subdomains')
     list_subdomains_parser.add_argument('subdomain', help='Subdomain name or wildcard')
@@ -1342,6 +1372,8 @@ def main():
     list_subdomains_parser.add_argument('--brief', action='store_true', help='Show only subdomain names')
     list_subdomains_parser.add_argument('--create_time', help='Filter by creation time')
     list_subdomains_parser.add_argument('--update_time', help='Filter by last update time')
+    list_subdomains_parser.add_argument('--count', action='store_true', help='Count the number of returned records')
+
 
     delete_subdomain_parser = subdomain_action_parser.add_parser('delete', help='Delete subdomains')
     delete_subdomain_parser.add_argument('subdomain', help='Subdomain to delete (use * to delete all)')
@@ -1450,7 +1482,7 @@ def main():
         if args.action == 'create':
             create_workspace(args.workspace)
         elif args.action == 'list':
-            list_workspaces(workspace=args.workspace, brief=args.brief)
+            list_workspaces(workspace=args.workspace, brief=args.brief, count=args.count)
         elif args.action == 'delete':
             delete_workspace(args.workspace)
 
@@ -1458,39 +1490,15 @@ def main():
         if args.action == 'add':
             add_domain(args.domain, args.workspace)
         elif args.action == 'list':
-            list_domains(args.domain, args.workspace, brief=args.brief)
+            list_domains(args.domain, args.workspace, brief=args.brief, count=args.count)
         elif args.action == 'delete':
             delete_domain(args.domain if args.domain != '*' else '*', args.workspace)
 
     elif args.command == 'subdomain':
         if args.action == 'add':
-            add_subdomain(
-                args.subdomain,
-                args.domain,
-                args.workspace,
-                sources=args.source,
-                scope=args.scope,
-                resolved=args.resolved,
-                ip_address=args.ip,
-                cdn_status=args.cdn_status,
-                cdn_name=args.cdn_name
-            )
+            add_subdomain(args.subdomain, args.domain, args.workspace, sources=args.source, unsources=args.unsource, scope=args.scope, resolved=args.resolved, ip_address=args.ip, unip=args.unip, cdn_status=args.cdn_status, cdn_name=args.cdn_name, uncdn_name=args.uncdn_name)
         elif args.action == 'list':
-            list_subdomains(
-                args.subdomain,
-                args.domain,
-                args.workspace,
-                args.source,
-                args.scope,
-                args.resolved,
-                args.brief,
-                args.source_only,
-                args.cdn_status,
-                args.ip,
-                args.cdn_name,
-                args.create_time,
-                args.update_time
-            )
+            list_subdomains(subdomain=args.subdomain, domain=args.domain, workspace=args.workspace, sources=args.source, scope=args.scope, resolved=args.resolved, brief=args.brief, source_only=args.source_only, cdn_status=args.cdn_status, ip=args.ip, cdn_name=args.cdn_name, count=args.count, create_time=args.create_time, update_time=args.update_time)
         elif args.action == 'delete':
             if os.path.isfile(args.subdomain):
                 with open(args.subdomain, 'r') as file:
@@ -1498,107 +1506,22 @@ def main():
                 for subdomain in subdomains:
                     delete_subdomain(subdomain, args.domain, args.workspace, args.scope, args.source, args.resolved)
             else:
-                delete_subdomain(
-                    args.subdomain,
-                    args.domain,
-                    args.workspace,
-                    args.scope,
-                    args.source,
-                    args.resolved,
-                    args.ip,
-                    args.cdn_status,
-                    args.cdn_name
-                ) if args.subdomain != '*' else delete_subdomain('*', args.domain, args.workspace, args.scope, args.source, args.resolved)
+                delete_subdomain(args.subdomain, args.domain, args.workspace, args.scope, args.source, args.resolved, args.ip, args.cdn_status, args.cdn_name) if args.subdomain != '*' else delete_subdomain('*', args.domain, args.workspace, args.scope, args.source, args.resolved)
 
     elif args.command == 'live':
         if args.action == 'add':
-            add_live_subdomain(
-                args.url, 
-                args.subdomain, 
-                args.domain, 
-                args.workspace,
-                scheme=args.scheme, 
-                method=args.method, 
-                port=args.port,
-                status_code=args.status_code, 
-                ip_address=args.ip,
-                cdn_status=args.cdn_status, 
-                cdn_name=args.cdn_name,
-                title=args.title, 
-                webserver=args.webserver,
-                webtech=args.webtech, 
-                cname=args.cname,
-                scope=args.scope,
-                location=args.location
-            )
+            add_live_subdomain(args.url, args.subdomain, args.domain, args.workspace, scheme=args.scheme, method=args.method, port=args.port, status_code=args.status_code, ip_address=args.ip, cdn_status=args.cdn_status, cdn_name=args.cdn_name, title=args.title, webserver=args.webserver, webtech=args.webtech, cname=args.cname, scope=args.scope, location=args.location)
         elif args.action == 'list':
-            list_live_subdomain(
-                args.url,
-                args.subdomain,
-                args.domain,
-                args.workspace,
-                scheme=args.scheme,
-                method=args.method,
-                port=args.port,
-                status_code=args.status_code,
-                ip=args.ip,
-                cdn_status=args.cdn_status,
-                cdn_name=args.cdn_name,
-                title=args.title,
-                webserver=args.webserver,
-                webtech=args.webtech,
-                cname=args.cname,
-                create_time=args.create_time,
-                update_time=args.update_time,
-                brief=args.brief,
-                scope=args.scope,
-                location=args.location
-            )
+            list_live_subdomain(args.url, args.subdomain, args.domain, args.workspace, scheme=args.scheme, method=args.method, port=args.port, status_code=args.status_code, ip=args.ip, cdn_status=args.cdn_status, cdn_name=args.cdn_name, title=args.title, webserver=args.webserver, webtech=args.webtech, cname=args.cname, create_time=args.create_time, update_time=args.update_time, brief=args.brief, scope=args.scope, location=args.location)
         elif args.action == 'delete':
-            delete_live_subdomain(
-                args.url,
-                args.subdomain,
-                args.domain,
-                args.workspace,
-                scheme=args.scheme,
-                method=args.method,
-                port=args.port,
-                status_code=args.status_code,
-                ip_address=args.ip,
-                cdn_status=args.cdn_status,
-                cdn_name=args.cdn_name,
-                title=args.title,
-                webserver=args.webserver,
-                webtech=args.webtech,
-                cname=args.cname,
-                scope=args.scope
-            )
+            delete_live_subdomain(args.url, args.subdomain, args.domain, args.workspace, scheme=args.scheme, method=args.method, port=args.port, status_code=args.status_code, ip_address=args.ip, cdn_status=args.cdn_status, cdn_name=args.cdn_name, title=args.title, webserver=args.webserver, webtech=args.webtech, cname=args.cname, scope=args.scope)
     elif args.command == 'ip':
         if args.action == 'add':
             add_ip(args.ip, args.workspace, args.cidr, args.asn, args.port, args.service, args.cves)
         elif args.action == 'list':
-            list_ip(
-                args.ip,
-                args.workspace,
-                cidr=args.cidr,
-                asn=args.asn,
-                port=args.port,
-                service=args.service,
-                brief=args.brief,
-                cves=args.cves,
-                create_time=args.create_time,
-                update_time=args.update_time
-            )
+            list_ip(args.ip, args.workspace, cidr=args.cidr, asn=args.asn, port=args.port, service=args.service, brief=args.brief, cves=args.cves, create_time=args.create_time, update_time=args.update_time)
         elif args.action == 'delete':
-            delete_ip(
-                ip=args.ip,
-                workspace=args.workspace,
-                asn=args.asn,
-                cidr=args.cidr,
-                port=args.port,
-                service=args.service,
-                cves=args.cves
-            )
+            delete_ip(ip=args.ip, workspace=args.workspace, asn=args.asn, cidr=args.cidr, port=args.port, service=args.service, cves=args.cves)
 
 if __name__ == "__main__":
     main()
