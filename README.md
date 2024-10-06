@@ -35,6 +35,7 @@
         domain              Manage domains in a workspace
         subdomain           Manage subdomains in a workspace
         live                Manage live subdomains
+        ip                  Manage IPs in a workspace
 
     options:
       -h, --help            show this help message and exit
@@ -48,9 +49,9 @@ The script is executed from the command line. The general syntax is:
 python3 subscope.py <command> <subcommand> [options]
 ```
 
-| management     |  document                     | managment     | document                  |
-| -------------- | ------------------------------| ------------- | ------------------------- |
-| `Workspace`    | [here](docs/workspace.md)     | `subdomain`   | [here](docs/subdomain.md) |
+| management     |  document                     | managment     | document                  | managment     | document                  |
+| -------------- | ------------------------------| ------------- | ------------------------- | ------------- | ------------------------- |
+| `Workspace`    | [here](docs/workspace.md)     | `subdomain`   | [here](docs/subdomain.md) | `ip`          | [here](docs/ip.md) |
 | `domain`       | [here](docs/domain.md)        | `live url`    | [here](docs/live.md)      |
 
 ## Contributing
