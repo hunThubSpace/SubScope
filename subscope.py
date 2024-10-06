@@ -72,6 +72,22 @@ CREATE TABLE IF NOT EXISTS live (
 )
 ''')
 
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS ip (
+    ip TEXT NOT NULL,
+    workspace TEXT NOT NULL,
+    cidr TEXT,
+    asn INTEGER,
+    port INTEGER,
+    service TEXT,
+    cves TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY(ip, workspace, port)
+);
+''')
+
 def create_workspace(workspace):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Format: YYYY-MM-DD HH:MM:SS
 
@@ -777,7 +793,6 @@ def add_live_subdomain(url, subdomain, domain, workspace, scheme=None, method=No
         conn.commit()
         print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | adding live subdomain | live url {Fore.BLUE}{Style.BRIGHT}{url}{Style.RESET_ALL} added to subdomain {Fore.BLUE}{Style.BRIGHT}{subdomain}{Style.RESET_ALL} in domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} in workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} with details: scheme={Fore.BLUE}{Style.BRIGHT}{scheme}{Style.RESET_ALL}, method={Fore.BLUE}{Style.BRIGHT}{method}{Style.RESET_ALL}, port={Fore.BLUE}{Style.BRIGHT}{port}{Style.RESET_ALL}, status_code={Fore.BLUE}{Style.BRIGHT}{status_code}{Style.RESET_ALL}, location={Fore.BLUE}{Style.BRIGHT}{location}{Style.RESET_ALL}, scope={Fore.BLUE}{Style.BRIGHT}{scope}{Style.RESET_ALL}, cdn_status={Fore.BLUE}{Style.BRIGHT}{cdn_status}{Style.RESET_ALL}, cdn_name={Fore.BLUE}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}, title={Fore.BLUE}{Style.BRIGHT}{title}{Style.RESET_ALL}, webserver={Fore.BLUE}{Style.BRIGHT}{webserver}{Style.RESET_ALL}, webtech={Fore.BLUE}{Style.BRIGHT}{webtech}{Style.RESET_ALL}, cname={Fore.BLUE}{Style.BRIGHT}{cname}{Style.RESET_ALL}")
 
- 
 def list_live_subdomain(url='*', subdomain='*', domain='*', workspace='*', scheme=None, method=None, port=None, 
                          status_code=None, ip=None, cdn_status=None, cdn_name=None, title=None, 
                          webserver=None, webtech=None, cname=None, create_time=None, update_time=None, 
@@ -1001,6 +1016,202 @@ def delete_live_subdomain(url='*', subdomain='*', domain='*', workspace='*', sco
               f"webserver={Fore.BLUE}{Style.BRIGHT}{webserver}{Style.RESET_ALL}, webtech={Fore.BLUE}{Style.BRIGHT}{webtech}{Style.RESET_ALL}, "
               f"cname={Fore.BLUE}{Style.BRIGHT}{cname}{Style.RESET_ALL}")
 
+def add_ip(ip, workspace, cidr=None, asn=None, port=None, service=None, cves=None):
+    # Custom timestamp format
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Check if the workspace exists
+    cursor.execute("SELECT * FROM workspaces WHERE workspace = ?", (workspace,))
+    if not cursor.fetchone():
+        print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding IP | workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} does not exist")
+        return
+
+    # Check if the port is provided
+    if port is None:
+        print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding IP | --port is required")
+        return
+
+    # Process CVEs as a list (if provided)
+    cves_list = ', '.join(cves) if cves else None
+
+    # Check if the IP already exists in the workspace
+    cursor.execute("SELECT * FROM ip WHERE ip = ? AND workspace = ? AND port = ?", (ip, workspace, port))
+    existing_ip = cursor.fetchone()
+
+    # If the IP with the given port exists, update other fields
+    if existing_ip:
+        update_fields = {}
+        if cidr and cidr != existing_ip[2]:  # Assuming 2nd column is 'cidr'
+            update_fields['cidr'] = cidr
+
+        if asn and asn != existing_ip[3]:  # Assuming 3rd column is 'asn'
+            update_fields['asn'] = asn
+
+        if service and service != existing_ip[5]:  # Assuming 5th column is 'service'
+            update_fields['service'] = service
+
+        if cves_list and cves_list != existing_ip[6]:  # Assuming 6th column is 'cves'
+            update_fields['cves'] = cves_list
+
+        # Update the IP record only if there are changes
+        if update_fields:
+            update_query = "UPDATE ip SET "
+            update_query += ", ".join(f"{col} = ?" for col in update_fields.keys())
+            update_query += ", updated_at = ? WHERE ip = ? AND workspace = ? AND port = ?"
+            cursor.execute(update_query, (*update_fields.values(), timestamp, ip, workspace, port))
+            conn.commit()
+            print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | updating IP | IP {Fore.BLUE}{Style.BRIGHT}{ip}{Style.RESET_ALL} in workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} updated with changes: {Fore.BLUE}{Style.BRIGHT}{update_fields}{Style.RESET_ALL}")
+        else:
+            print(f"{timestamp} | {Fore.YELLOW}info{Style.RESET_ALL} | updating IP | No updates needed for IP {Fore.BLUE}{Style.BRIGHT}{ip}{Style.RESET_ALL} in workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL}")
+    else:
+        # If the IP does not exist, insert it as a new record
+        cursor.execute(''' 
+            INSERT INTO ip (ip, workspace, cidr, asn, port, service, cves, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) 
+        ''', (ip, workspace, cidr, asn, port, service, cves_list, timestamp, timestamp))
+        conn.commit()
+        print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | adding IP | IP {Fore.BLUE}{Style.BRIGHT}{ip}{Style.RESET_ALL} added to workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL}")
+
+def list_ip(ip='*', workspace='*', cidr=None, asn=None, port=None, service=None, 
+            cves=None, brief=False, create_time=None, update_time=None):
+    # Check if the workspace exists if workspace is not '*'
+    if workspace != '*':
+        cursor.execute("SELECT * FROM workspaces WHERE workspace = ?", (workspace,))
+        if not cursor.fetchone():
+            print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | listing IP | Workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} does not exist")
+            return
+
+    # Base query for listing IPs
+    query = """
+        SELECT ip, cidr, asn, port, service, created_at, updated_at, workspace, cves 
+        FROM ip
+    """
+    parameters = []
+
+    # If listing all assets, do not filter by workspace
+    if workspace != '*':
+        query += " WHERE workspace = ?"
+        parameters.append(workspace)
+
+    # Filter by specific IP
+    if ip != '*':
+        query += " AND ip = ?" if 'WHERE' in query else " WHERE ip = ?"
+        parameters.append(ip)
+
+    # Filter by CIDR
+    if cidr:
+        query += " AND cidr = ?" if 'WHERE' in query else " WHERE cidr = ?"
+        parameters.append(cidr)
+
+    # Filter by ASN
+    if asn:
+        query += " AND asn = ?" if 'WHERE' in query else " WHERE asn = ?"
+        parameters.append(asn)
+
+    # Filter by port
+    if port:
+        query += " AND port = ?" if 'WHERE' in query else " WHERE port = ?"
+        parameters.append(port)
+
+    # Filter by service
+    if service:
+        query += " AND service = ?" if 'WHERE' in query else " WHERE service = ?"
+        parameters.append(service)
+
+    # Filter by CVEs
+    if cves:
+        query += " AND cves LIKE ?" if 'WHERE' in query else " WHERE cves LIKE ?"
+        parameters.append(f'%{cves}%')
+
+    # Parse create_time and update_time and add time range filters
+    if create_time:
+        start_time, end_time = parse_time_range(create_time)
+        query += " AND created_at BETWEEN ? AND ?" if 'WHERE' in query else " WHERE created_at BETWEEN ? AND ?"
+        parameters.extend([start_time, end_time])
+
+    if update_time:
+        start_time, end_time = parse_time_range(update_time)
+        query += " AND updated_at BETWEEN ? AND ?" if 'WHERE' in query else " WHERE updated_at BETWEEN ? AND ?"
+        parameters.extend([start_time, end_time])
+
+    # Execute the query
+    cursor.execute(query, parameters)
+    ips = cursor.fetchall()
+
+    # Handle output
+    if ips:
+        if brief:
+            unique_ips = set(ip_record[0] for ip_record in ips)  # Use a set for unique IPs
+            print("\n".join(unique_ips))  # Print unique IP addresses
+        else:
+            result = [
+                {
+                    "ip": ip_record[0], "cidr": ip_record[1], "asn": ip_record[2], 
+                    "port": ip_record[3], "service": ip_record[4], "cves": ip_record[5],
+                    "created_at": ip_record[6], "updated_at": ip_record[7], 
+                    "workspace": ip_record[8]
+                }
+                for ip_record in ips
+            ]
+            print(json.dumps(result, indent=4))
+    
+def delete_ip(ip='*', workspace='*', asn=None, cidr=None, port=None, service=None, cves=None):
+    # Custom timestamp format
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Build the base query for deletion
+    query = "DELETE FROM ip"
+    parameters = []
+    filters = []
+
+    # Handle workspace filtering
+    if workspace != '*':
+        filters.append("workspace = ?")
+        parameters.append(workspace)
+
+    # Handle IP filtering
+    if ip != '*':
+        filters.append("ip = ?")
+        parameters.append(ip)
+
+    # Handle additional filters
+    if asn:
+        filters.append("asn = ?")
+        parameters.append(asn)
+
+    if cidr:
+        filters.append("cidr = ?")
+        parameters.append(cidr)
+
+    if port:
+        filters.append("port = ?")
+        parameters.append(port)
+
+    if service:
+        filters.append("service = ?")
+        parameters.append(service)
+
+    if cves:
+        filters.append("cves LIKE ?")
+        parameters.append(f"%{cves}%")  # Assuming CVEs are stored in a way that supports LIKE query
+
+    # If there are filters, add them to the query
+    if filters:
+        query += " WHERE " + " AND ".join(filters)
+
+    # Execute the query to check if any rows match the criteria before deletion
+    cursor.execute(query, parameters)
+    if cursor.rowcount == 0:
+        print(f"{timestamp} | error | No matching IP found for deletion with specified filters.")
+        return
+
+    # Perform the deletion
+    cursor.execute(query, parameters)
+    conn.commit()
+
+    print(f"{timestamp} | success | IP '{ip}' deleted from workspace '{workspace}' with specified filters.")
+
+
 def parse_time_range(time_range_str):
     # Handle time ranges in the format 'start_time,end_time'
     times = time_range_str.split(',')
@@ -1037,41 +1248,34 @@ def parse_single_time(time_str):
     raise ValueError(f"Invalid time format: {time_str}")
 
 def main():
-    parser = argparse.ArgumentParser(description='Manage workspaces, domains, and subdomains')
+    parser = argparse.ArgumentParser(description='Manage workspaces, domains, subdomains, and IPs')
     sub_parser = parser.add_subparsers(dest='command')
-    
+
     # Workspace commands
     workspace_parser = sub_parser.add_parser('workspace', help='Manage workspaces')
     workspace_action_parser = workspace_parser.add_subparsers(dest='action')
 
-    # Create a new workspace
     workspace_action_parser.add_parser('create', help='Create a new workspace').add_argument('workspace', help='Name of the workspace')
-
-    # List workspaces, with optional brief output
+    
     list_workspaces_parser = workspace_action_parser.add_parser('list', help='List workspaces')
     list_workspaces_parser.add_argument('workspace', help="Workspace name or wildcard '*' for all workspaces")
     list_workspaces_parser.add_argument('--brief', action='store_true', help='Show only workspace names')
-    
-    # Delete a workspace
+
     workspace_action_parser.add_parser('delete', help='Delete a workspace').add_argument('workspace', help='Name of the workspace')
 
     # Domain commands
     domain_parser = sub_parser.add_parser('domain', help='Manage domains in a workspace')
     domain_action_parser = domain_parser.add_subparsers(dest='action')
 
-    # Add a domain
     add_domain_parser = domain_action_parser.add_parser('add', help='Add a domain')
     add_domain_parser.add_argument('domain', help='Domain name')
     add_domain_parser.add_argument('workspace', help='Workspace name')
 
-    # List domains in a workspace
     list_domains_parser = domain_action_parser.add_parser('list', help='List domains in a workspace')
     list_domains_parser.add_argument('domain', help='Domain name (use "*" for all domains)')
     list_domains_parser.add_argument('workspace', help='Workspace name (use "*" for all workspaces)')
     list_domains_parser.add_argument('--brief', action='store_true', help='Show only domain names')
 
-
-    # Delete a domain from a workspace
     delete_domain_parser = domain_action_parser.add_parser('delete', help='Delete a domain')
     delete_domain_parser.add_argument('domain', help='Domain name')
     delete_domain_parser.add_argument('workspace', help='Workspace name')
@@ -1080,116 +1284,131 @@ def main():
     subdomain_parser = sub_parser.add_parser('subdomain', help='Manage subdomains in a workspace')
     subdomain_action_parser = subdomain_parser.add_subparsers(dest='action')
 
-    # Add a subdomain
     add_subdomain_parser = subdomain_action_parser.add_parser('add', help='Add a subdomain')
     add_subdomain_parser.add_argument('subdomain', help='Subdomain name')
     add_subdomain_parser.add_argument('domain', help='Domain name')
     add_subdomain_parser.add_argument('workspace', help='Workspace name')
-    add_subdomain_parser.add_argument('--source', help='Source(s) (comma-separated)', nargs='*')
-    add_subdomain_parser.add_argument('--scope', help='Scope (default: inscope)', choices=['inscope', 'outscope'], default='inscope')
-    add_subdomain_parser.add_argument('--resolved', help='Resolved status (yes or no)', choices=['yes', 'no'], default='no')  # New resolved argument
+    add_subdomain_parser.add_argument('--source', nargs='*', help='Source(s) (comma-separated)')
+    add_subdomain_parser.add_argument('--scope', choices=['inscope', 'outscope'], default='inscope', help='Scope')
+    add_subdomain_parser.add_argument('--resolved', choices=['yes', 'no'], default='no', help='Resolved status')
     add_subdomain_parser.add_argument('--ip', default='none', help='IP address of the subdomain')
-    add_subdomain_parser.add_argument('--cdn_status', default='no', choices=['yes', 'no'], help='Whether the subdomain uses a cdn_status')
+    add_subdomain_parser.add_argument('--cdn_status', default='no', choices=['yes', 'no'], help='CDN status')
     add_subdomain_parser.add_argument('--cdn_name', default='none', help='Name of the CDN provider')
-    
-    # List subdomains
+
     list_subdomains_parser = subdomain_action_parser.add_parser('list', help='List subdomains')
     list_subdomains_parser.add_argument('subdomain', help='Subdomain name or wildcard')
     list_subdomains_parser.add_argument('domain', help='Domain name or wildcard')
     list_subdomains_parser.add_argument('workspace', help='Workspace name')
     list_subdomains_parser.add_argument('--source', nargs='*', help='Filter by source(s)')
-    list_subdomains_parser.add_argument('--source-only', action='store_true', help='Show only subdomains matching the specified source(s)')
-    list_subdomains_parser.add_argument('--scope', help='Filter by scope', choices=['inscope', 'outscope'])
+    list_subdomains_parser.add_argument('--source-only', action='store_true', help='Show only matching subdomains')
+    list_subdomains_parser.add_argument('--scope', choices=['inscope', 'outscope'], help='Filter by scope')
     list_subdomains_parser.add_argument('--resolved', choices=['yes', 'no'], help='Filter by resolved status')
-    list_subdomains_parser.add_argument('--cdn_status', choices=['yes', 'no'], help='Filter by cdn_status status')
+    list_subdomains_parser.add_argument('--cdn_status', choices=['yes', 'no'], help='Filter by CDN status')
     list_subdomains_parser.add_argument('--ip', help='Filter by IP address')
     list_subdomains_parser.add_argument('--cdn_name', help='Filter by CDN provider name')
     list_subdomains_parser.add_argument('--brief', action='store_true', help='Show only subdomain names')
-    list_subdomains_parser.add_argument('--create_time', help='Filter by creation time (e.g., 2024-09-29 or 2024-09). Supports time ranges (e.g., 2023-12-03-12:30,2024-03-10-12:30)')
-    list_subdomains_parser.add_argument('--update_time', help='Filter by last update time (e.g., 2024-09-29 or 2024-09). Supports time ranges (e.g., 2023,2024)')
+    list_subdomains_parser.add_argument('--create_time', help='Filter by creation time')
+    list_subdomains_parser.add_argument('--update_time', help='Filter by last update time')
 
-
-    # Adding subcommands for subdomain actions
     delete_subdomain_parser = subdomain_action_parser.add_parser('delete', help='Delete subdomains')
     delete_subdomain_parser.add_argument('subdomain', help='Subdomain to delete (use * to delete all)')
     delete_subdomain_parser.add_argument('domain', help='Domain name')
     delete_subdomain_parser.add_argument('workspace', help='Workspace name')
-    delete_subdomain_parser.add_argument('--resolved', help='Filter by resolved status', choices=['yes', 'no'])
+    delete_subdomain_parser.add_argument('--resolved', choices=['yes', 'no'], help='Filter by resolved status')
     delete_subdomain_parser.add_argument('--source', help='Filter by source')
-    delete_subdomain_parser.add_argument('--scope', help='Filter by scope', choices=['inscope', 'outscope'])
+    delete_subdomain_parser.add_argument('--scope', choices=['inscope', 'outscope'], help='Filter by scope')
     delete_subdomain_parser.add_argument('--ip', help='Filter by IP address')
-    delete_subdomain_parser.add_argument('--cdn_status', help='Filter by cdn_status', choices=['yes', 'no'])
-    delete_subdomain_parser.add_argument('--cdn_name', help='Filter by CDN name')
-    
+    delete_subdomain_parser.add_argument('--cdn_status', choices=['yes', 'no'], help='Filter by CDN status')
+    delete_subdomain_parser.add_argument('--cdn_name', help='Filter by CDN provider name')
+
+    # Live subdomain commands
     live_parser = sub_parser.add_parser('live', help='Manage live subdomains')
     live_action_parser = live_parser.add_subparsers(dest='action')
-    
-    # Add live subdomain action
+
     add_live_subdomain_parser = live_action_parser.add_parser('add', help='Add a live subdomain')
-    add_live_subdomain_parser.add_argument('url', help='URL of the live subdomain (e.g. https://www.google.com:443)')
-    add_live_subdomain_parser.add_argument('subdomain', help='Subdomain (e.g. www.google.com)')
-    add_live_subdomain_parser.add_argument('domain', help='Domain (e.g. google.com)')
-    add_live_subdomain_parser.add_argument('workspace', help='Workspace (e.g. google_wk)')
+    add_live_subdomain_parser.add_argument('url', help='URL of the live subdomain')
+    add_live_subdomain_parser.add_argument('subdomain', help='Subdomain')
+    add_live_subdomain_parser.add_argument('domain', help='Domain')
+    add_live_subdomain_parser.add_argument('workspace', help='Workspace')
     add_live_subdomain_parser.add_argument('--scheme', help='Scheme (http or https)')
     add_live_subdomain_parser.add_argument('--method', help='HTTP method')
-    add_live_subdomain_parser.add_argument('--port', help='Port number', type=int)
-    add_live_subdomain_parser.add_argument('--status_code', help='HTTP status code', type=int)
-    add_live_subdomain_parser.add_argument('--scope', choices=['inscope', 'outscope'], help='Scope of the live subdomain (e.g. inscope, outscope)')  # Updated scope argument
-    add_live_subdomain_parser.add_argument('--ip', help='IP address of the live subdomain')
-    add_live_subdomain_parser.add_argument('--cdn_status', choices=['yes', 'no'], help='Whether the live subdomain uses a CDN')
+    add_live_subdomain_parser.add_argument('--port', type=int, help='Port number')
+    add_live_subdomain_parser.add_argument('--status_code', type=int, help='HTTP status code')
+    add_live_subdomain_parser.add_argument('--scope', choices=['inscope', 'outscope'], help='Scope')
+    add_live_subdomain_parser.add_argument('--ip', help='IP address')
+    add_live_subdomain_parser.add_argument('--cdn_status', choices=['yes', 'no'], help='CDN status')
     add_live_subdomain_parser.add_argument('--cdn_name', help='Name of the CDN provider')
     add_live_subdomain_parser.add_argument('--title', help='Title of the live subdomain')
-    add_live_subdomain_parser.add_argument('--webserver', help='Web server type (e.g. nginx)')
+    add_live_subdomain_parser.add_argument('--webserver', help='Web server type')
     add_live_subdomain_parser.add_argument('--webtech', help='Web technologies (comma-separated)')
     add_live_subdomain_parser.add_argument('--cname', help='CNAME of the live subdomain')
     add_live_subdomain_parser.add_argument('--location', help='Redirect location')
 
-
-
-    # Add live subdomain list action
     list_live_subdomain_parser = live_action_parser.add_parser('list', help='List live subdomains')
-    list_live_subdomain_parser.add_argument('url', help='URL of the live subdomain (e.g. https://www.google.com:443)')
-    list_live_subdomain_parser.add_argument('subdomain', help='Subdomain name or wildcard (*)')
-    list_live_subdomain_parser.add_argument('domain', help='Domain name or wildcard (*)')
+    list_live_subdomain_parser.add_argument('url', help='URL of the live subdomain')
+    list_live_subdomain_parser.add_argument('subdomain', help='Subdomain name or wildcard')
+    list_live_subdomain_parser.add_argument('domain', help='Domain name or wildcard')
     list_live_subdomain_parser.add_argument('workspace', help='Workspace name')
-    list_live_subdomain_parser.add_argument('--scheme', help='Filter by scheme (http/https)')
+    list_live_subdomain_parser.add_argument('--scheme', help='Filter by scheme')
     list_live_subdomain_parser.add_argument('--method', help='Filter by HTTP method')
-    list_live_subdomain_parser.add_argument('--port', help='Filter by port', type=int)
-    list_live_subdomain_parser.add_argument('--status_code', help='Filter by HTTP status code', type=int)
+    list_live_subdomain_parser.add_argument('--port', type=int, help='Filter by port')
+    list_live_subdomain_parser.add_argument('--status_code', type=int, help='Filter by HTTP status code')
     list_live_subdomain_parser.add_argument('--ip', help='Filter by IP address')
     list_live_subdomain_parser.add_argument('--cdn_status', choices=['yes', 'no'], help='Filter by CDN status')
     list_live_subdomain_parser.add_argument('--cdn_name', help='Filter by CDN name')
-    list_live_subdomain_parser.add_argument('--title', help='Filter by title of the live subdomain')
-    list_live_subdomain_parser.add_argument('--webserver', help='Filter by webserver (e.g., nginx)')
-    list_live_subdomain_parser.add_argument('--webtech', help='Filter by web technologies (comma-separated)')
-    list_live_subdomain_parser.add_argument('--cname', help='Filter by CNAME of the live subdomain')
-    list_live_subdomain_parser.add_argument('--create_time', help='Filter by creation time (e.g., 2024-09-29 or 2024-09). Supports time ranges (e.g., 2023-12-03-12:30,2024-03-10-12:30)')
-    list_live_subdomain_parser.add_argument('--update_time', help='Filter by last update time (e.g., 2024-09-29 or 2024-09). Supports time ranges (e.g., 2023,2024)')
-    list_live_subdomain_parser.add_argument('--brief', action='store_true', help='Show only subdomain names (brief output)')
+    list_live_subdomain_parser.add_argument('--title', help='Filter by title')
+    list_live_subdomain_parser.add_argument('--webserver', help='Filter by webserver')
+    list_live_subdomain_parser.add_argument('--webtech', help='Filter by web technologies')
+    list_live_subdomain_parser.add_argument('--cname', help='Filter by CNAME')
+    list_live_subdomain_parser.add_argument('--create_time', help='Filter by creation time')
+    list_live_subdomain_parser.add_argument('--update_time', help='Filter by update time')
+    list_live_subdomain_parser.add_argument('--brief', action='store_true', help='Show only subdomain names')
     list_live_subdomain_parser.add_argument('--scope', help='Filter by scope')
-    list_live_subdomain_parser.add_argument('--location', help='Filter by redirect locaiton')
+    list_live_subdomain_parser.add_argument('--location', help='Filter by redirect location')
 
-
-    # Adding subcommands for live subdomain actions
     delete_live_subdomain_parser = live_action_parser.add_parser('delete', help='Delete live subdomains')
-    delete_live_subdomain_parser.add_argument('url', help='URL of the live subdomain (use * to delete all for a subdomain)')
-    delete_live_subdomain_parser.add_argument('subdomain', help='Subdomain (e.g. www.example.com)')
-    delete_live_subdomain_parser.add_argument('domain', help='Domain (e.g. example.com)')
-    delete_live_subdomain_parser.add_argument('workspace', help='Workspace (e.g. example_workspace)')
-    delete_live_subdomain_parser.add_argument('--scope', help='Filter by scope (e.g., inscope or outscope)')
-    delete_live_subdomain_parser.add_argument('--scheme', help='Filter by scheme (http/https)')
-    delete_live_subdomain_parser.add_argument('--method', help='Filter by HTTP method')
-    delete_live_subdomain_parser.add_argument('--port', help='Filter by port', type=int)
-    delete_live_subdomain_parser.add_argument('--status_code', help='Filter by HTTP status code', type=int)
-    delete_live_subdomain_parser.add_argument('--ip', help='Filter by IP address')
+    delete_live_subdomain_parser.add_argument('url', help='URL of the live subdomain')
+    delete_live_subdomain_parser.add_argument('subdomain', help='Subdomain')
+    delete_live_subdomain_parser.add_argument('domain', help='Domain')
+    delete_live_subdomain_parser.add_argument('workspace', help='Workspace')
+    delete_live_subdomain_parser.add_argument('--scope', help='Filter by scope')
     delete_live_subdomain_parser.add_argument('--cdn_status', choices=['yes', 'no'], help='Filter by CDN status')
-    delete_live_subdomain_parser.add_argument('--cdn_name', help='Filter by CDN name')
-    delete_live_subdomain_parser.add_argument('--title', help='Filter by title of the live subdomain')
-    delete_live_subdomain_parser.add_argument('--webserver', help='Filter by webserver (e.g., nginx)')
-    delete_live_subdomain_parser.add_argument('--webtech', help='Filter by web technologies (comma-separated)')
-    delete_live_subdomain_parser.add_argument('--cname', help='Filter by CNAME of the live subdomain')
-    delete_live_subdomain_parser.add_argument('--create_time', help='Filter by creation time (e.g., 2024-09-29 or 2024-09). Supports time ranges (e.g., 2023-12-03-12:30,2024-03-10-12:30)')
-    delete_live_subdomain_parser.add_argument('--update_time', help='Filter by last update time (e.g., 2024-09-29 or 2024-09). Supports time ranges (e.g., 2023,2024)')
+    delete_live_subdomain_parser.add_argument('--port', type=int, help='Filter by port')
+    delete_live_subdomain_parser.add_argument('--status_code', type=int, help='Filter by HTTP status code')
+
+    # IP commands
+    ip_parser = sub_parser.add_parser('ip', help='Manage IPs in a workspace')
+    ip_action_parser = ip_parser.add_subparsers(dest='action')
+
+    add_ip_parser = ip_action_parser.add_parser('add', help='Add an IP to a workspace')
+    add_ip_parser.add_argument('ip', help='IP address')
+    add_ip_parser.add_argument('workspace', help='Workspace')
+    add_ip_parser.add_argument('--cidr', help='CIDR notation')
+    add_ip_parser.add_argument('--asn', help='Autonomous System Number')
+    add_ip_parser.add_argument('--port', type=int, help='Port number')
+    add_ip_parser.add_argument('--service', help='Service on the IP')
+    add_ip_parser.add_argument('--cves', nargs='+', help='CVEs associated with the IP')
+
+    list_ips_parser = ip_action_parser.add_parser('list', help='List IPs in a workspace')
+    list_ips_parser.add_argument('ip', help='IP or CIDR (use * for all IPs)')
+    list_ips_parser.add_argument('workspace', help='Workspace (use * for all workspaces)')
+    list_ips_parser.add_argument('--cidr', help='Filter by CIDR')
+    list_ips_parser.add_argument('--asn', help='Filter by ASN')
+    list_ips_parser.add_argument('--port', type=int, help='Filter by port')
+    list_ips_parser.add_argument('--service', help='Filter by service')
+    list_ips_parser.add_argument('--cves', help='Filter by CVEs')  # Added this line
+    list_ips_parser.add_argument('--brief', action='store_true', help='Show only IP addresses')
+    list_ips_parser.add_argument('--create_time', help='Filter by creation time')
+    list_ips_parser.add_argument('--update_time', help='Filter by update time')
+
+    delete_ip_parser = ip_action_parser.add_parser('delete', help='Delete IPs')
+    delete_ip_parser.add_argument('ip', help='IP or CIDR (use * for all IPs)')  # Specify IP or CIDR
+    delete_ip_parser.add_argument('workspace', help='Workspace (use * for all workspaces)')  # Specify workspace
+    delete_ip_parser.add_argument('--port', type=int, help='Filter by port')  # Optional port filter
+    delete_ip_parser.add_argument('--service', help='Filter by service')  # Optional service filter
+    delete_ip_parser.add_argument('--asn', help='Filter by ASN')  # Optional ASN filter
+    delete_ip_parser.add_argument('--cidr', help='Filter by CIDR')  # Optional CIDR filter
+    delete_ip_parser.add_argument('--cves', help='Filter by CVEs')  # Optional CVEs filter
 
     args = parser.parse_args()
 
@@ -1321,7 +1540,41 @@ def main():
                 cname=args.cname,
                 scope=args.scope
             )
-            
+    elif args.command == 'ip':
+        if args.action == 'add':
+            add_ip(
+                ip=args.ip,
+                workspace=args.workspace,
+                cidr=args.cidr,
+                asn=args.asn,
+                port=args.port,
+                service=args.service,
+                cves=args.cves
+            )
+        elif args.action == 'list':
+            list_ip(
+                args.ip,
+                args.workspace,
+                cidr=args.cidr,
+                asn=args.asn,
+                port=args.port,
+                service=args.service,
+                brief=args.brief,
+                cves=args.cves,
+                create_time=args.create_time,
+                update_time=args.update_time
+            )
+        elif args.action == 'delete':
+            delete_ip(
+                ip=args.ip,
+                workspace=args.workspace,
+                asn=args.asn,
+                cidr=args.cidr,
+                port=args.port,
+                service=args.service,
+                cves=args.cves
+            )
+
 if __name__ == "__main__":
     main()
 
