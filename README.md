@@ -1,6 +1,6 @@
 # SubScope
 
-**SubScope** is a Python-based command-line tool that helps you manage domains, subdomains, live urls and IP ranges (soon) in workspaces using an SQLite database. This script simplifies the process of adding, listing, and deleting domains and subdomains, along with workspace management. It is especially useful for penetration testers, bug bounty hunters, or anyone who needs to efficiently organize and manage domain data.
+**SubScope** is a Python-based command-line tool that helps you manage domains, subdomains, live urls and IP ranges in workspaces using an SQLite database. This script simplifies the process of adding, listing, and deleting domains and subdomains, along with workspace management. It is especially useful for penetration testers, bug bounty hunters, or anyone who needs to efficiently organize and manage domain data.
 
 ## Requirements
 
