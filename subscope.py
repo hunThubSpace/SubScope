@@ -72,19 +72,18 @@ CREATE TABLE IF NOT EXISTS live (
 )
 ''')
 
-
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS ip (
     ip TEXT NOT NULL,
     workspace TEXT NOT NULL,
     cidr TEXT,
     asn INTEGER,
-    port INTEGER,
+    port TEXT,
     service TEXT,
     cves TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    PRIMARY KEY(ip, workspace, port)
+    PRIMARY KEY(ip, workspace)
 );
 ''')
 
@@ -1017,7 +1016,6 @@ def delete_live_subdomain(url='*', subdomain='*', domain='*', workspace='*', sco
               f"cname={Fore.BLUE}{Style.BRIGHT}{cname}{Style.RESET_ALL}")
 
 def add_ip(ip, workspace, cidr=None, asn=None, port=None, service=None, cves=None):
-    # Custom timestamp format
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Check if the workspace exists
@@ -1026,54 +1024,81 @@ def add_ip(ip, workspace, cidr=None, asn=None, port=None, service=None, cves=Non
         print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding IP | workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} does not exist")
         return
 
-    # Check if the port is provided
-    if port is None:
-        print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | adding IP | --port is required")
-        return
-
     # Process CVEs as a list (if provided)
     cves_list = ', '.join(cves) if cves else None
 
-    # Check if the IP already exists in the workspace
-    cursor.execute("SELECT * FROM ip WHERE ip = ? AND workspace = ? AND port = ?", (ip, workspace, port))
-    existing_ip = cursor.fetchone()
+    # Convert ports to a list of strings if provided and remove duplicates
+    ports = list(map(str, port)) if port else None
+    if ports:
+        ports = list(set(ports))  # Remove duplicates
+        ports.sort()
 
-    # If the IP with the given port exists, update other fields
-    if existing_ip:
+    # Start a transaction
+    conn.execute("BEGIN TRANSACTION;")
+
+    try:
+        # Check if the IP already exists in the specified workspace
+        cursor.execute("SELECT port, service, cves, cidr, asn FROM ip WHERE ip = ? AND workspace = ?", (ip, workspace))
+        existing_entry = cursor.fetchone()
+
         update_fields = {}
-        if cidr and cidr != existing_ip[2]:  # Assuming 2nd column is 'cidr'
-            update_fields['cidr'] = cidr
+        
+        if existing_entry:
+            existing_ports, existing_service, existing_cves, existing_cidr, existing_asn = existing_entry
+            
+            # Update fields if parameters are provided
+            if ports is not None:
+                ports_str = ', '.join(ports)
+                if sorted(existing_ports.split(',')) != sorted(ports):
+                    update_fields['port'] = ports_str
 
-        if asn and asn != existing_ip[3]:  # Assuming 3rd column is 'asn'
-            update_fields['asn'] = asn
+            if service is not None and service != existing_service:
+                update_fields['service'] = service
+            
+            if cves_list is not None and cves_list != existing_cves:
+                update_fields['cves'] = cves_list
+            
+            if cidr is not None and cidr != existing_cidr:
+                update_fields['cidr'] = cidr
+            
+            if asn is not None and asn != existing_asn:
+                update_fields['asn'] = asn
 
-        if service and service != existing_ip[5]:  # Assuming 5th column is 'service'
-            update_fields['service'] = service
-
-        if cves_list and cves_list != existing_ip[6]:  # Assuming 6th column is 'cves'
-            update_fields['cves'] = cves_list
-
-        # Update the IP record only if there are changes
-        if update_fields:
-            update_query = "UPDATE ip SET "
-            update_query += ", ".join(f"{col} = ?" for col in update_fields.keys())
-            update_query += ", updated_at = ? WHERE ip = ? AND workspace = ? AND port = ?"
-            cursor.execute(update_query, (*update_fields.values(), timestamp, ip, workspace, port))
-            conn.commit()
-            print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | updating IP | IP {Fore.BLUE}{Style.BRIGHT}{ip}{Style.RESET_ALL} in workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} updated with changes: {Fore.BLUE}{Style.BRIGHT}{update_fields}{Style.RESET_ALL}")
+            # Update the entry only if there are changes
+            if update_fields:
+                set_clause = ', '.join(f"{key} = ?" for key in update_fields.keys())
+                cursor.execute(f'''UPDATE ip 
+                                  SET {set_clause}, updated_at = ? 
+                                  WHERE ip = ? AND workspace = ?''',
+                               (*[update_fields[key] for key in update_fields.keys()], timestamp, ip, workspace))
+                print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | updating IP | IP {Fore.BLUE}{Style.BRIGHT}{ip}{Style.RESET_ALL} updated in workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} with updates: {Fore.BLUE}{Style.BRIGHT}{update_fields}{Style.RESET_ALL}")
+            else:
+                print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | updating IP | IP {Fore.BLUE}{Style.BRIGHT}{ip}{Style.RESET_ALL} is unchanged in workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL}")
         else:
-            print(f"{timestamp} | {Fore.YELLOW}info{Style.RESET_ALL} | updating IP | No updates needed for IP {Fore.BLUE}{Style.BRIGHT}{ip}{Style.RESET_ALL} in workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL}")
-    else:
-        # If the IP does not exist, insert it as a new record
-        cursor.execute(''' 
-            INSERT INTO ip (ip, workspace, cidr, asn, port, service, cves, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) 
-        ''', (ip, workspace, cidr, asn, port, service, cves_list, timestamp, timestamp))
+            # Insert a new record with the current timestamp
+            ports_str = ', '.join(ports) if ports else None
+            cursor.execute('''INSERT INTO ip (ip, workspace, cidr, asn, port, service, cves, created_at, updated_at)
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                           (ip, workspace, cidr, asn, ports_str, service, cves_list, timestamp, timestamp))
+            print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | adding IP | IP {Fore.BLUE}{Style.BRIGHT}{ip}{Style.RESET_ALL} added to workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL} with {{ 'port': {ports_str} }}")
+
+        # Commit the transaction
         conn.commit()
-        print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | adding IP | IP {Fore.BLUE}{Style.BRIGHT}{ip}{Style.RESET_ALL} added to workspace {Fore.BLUE}{Style.BRIGHT}{workspace}{Style.RESET_ALL}")
+
+    except sqlite3.IntegrityError as e:
+        # Rollback the transaction in case of error
+        conn.rollback()
+        print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | updating IP | {str(e)}")
+    except Exception as e:
+        # Rollback the transaction in case of any other error
+        conn.rollback()
+        print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | updating IP | {str(e)}")
 
 def list_ip(ip='*', workspace='*', cidr=None, asn=None, port=None, service=None, 
             cves=None, brief=False, create_time=None, update_time=None):
+    # Get the current timestamp for logging purposes
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     # Check if the workspace exists if workspace is not '*'
     if workspace != '*':
         cursor.execute("SELECT * FROM workspaces WHERE workspace = ?", (workspace,))
@@ -1110,8 +1135,15 @@ def list_ip(ip='*', workspace='*', cidr=None, asn=None, port=None, service=None,
 
     # Filter by port
     if port:
-        query += " AND port = ?" if 'WHERE' in query else " WHERE port = ?"
-        parameters.append(port)
+        if isinstance(port, list):
+            placeholders = ', '.join('?' for _ in port)  # Create placeholders for the number of ports
+            query += f" AND (port IN ({placeholders}) OR port LIKE ?)" if 'WHERE' in query else f" WHERE (port IN ({placeholders}) OR port LIKE ?)"
+            parameters.extend(port)
+            parameters.append(f'%{port[0]}%')  # Append port as a wildcard match
+        else:
+            query += " AND (port = ? OR port LIKE ?)" if 'WHERE' in query else " WHERE (port = ? OR port LIKE ?)"
+            parameters.append(port)
+            parameters.append(f'%{port}%')  # Append port as a wildcard match
 
     # Filter by service
     if service:
@@ -1154,7 +1186,7 @@ def list_ip(ip='*', workspace='*', cidr=None, asn=None, port=None, service=None,
                 for ip_record in ips
             ]
             print(json.dumps(result, indent=4))
-    
+
 def delete_ip(ip='*', workspace='*', asn=None, cidr=None, port=None, service=None, cves=None):
     # Custom timestamp format
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1183,9 +1215,11 @@ def delete_ip(ip='*', workspace='*', asn=None, cidr=None, port=None, service=Non
         filters.append("cidr = ?")
         parameters.append(cidr)
 
+    # Handle port filtering
     if port:
-        filters.append("port = ?")
+        filters.append("(port = ? OR port LIKE ?)")
         parameters.append(port)
+        parameters.append(f'%{port}%')  # Allow partial matches for ports
 
     if service:
         filters.append("service = ?")
@@ -1210,7 +1244,6 @@ def delete_ip(ip='*', workspace='*', asn=None, cidr=None, port=None, service=Non
     conn.commit()
 
     print(f"{timestamp} | success | IP '{ip}' deleted from workspace '{workspace}' with specified filters.")
-
 
 def parse_time_range(time_range_str):
     # Handle time ranges in the format 'start_time,end_time'
@@ -1385,7 +1418,7 @@ def main():
     add_ip_parser.add_argument('workspace', help='Workspace')
     add_ip_parser.add_argument('--cidr', help='CIDR notation')
     add_ip_parser.add_argument('--asn', help='Autonomous System Number')
-    add_ip_parser.add_argument('--port', type=int, help='Port number')
+    add_ip_parser.add_argument('--port', type=int, nargs='+', help='Port number')
     add_ip_parser.add_argument('--service', help='Service on the IP')
     add_ip_parser.add_argument('--cves', nargs='+', help='CVEs associated with the IP')
 
@@ -1542,15 +1575,7 @@ def main():
             )
     elif args.command == 'ip':
         if args.action == 'add':
-            add_ip(
-                ip=args.ip,
-                workspace=args.workspace,
-                cidr=args.cidr,
-                asn=args.asn,
-                port=args.port,
-                service=args.service,
-                cves=args.cves
-            )
+            add_ip(args.ip, args.workspace, args.cidr, args.asn, args.port, args.service, args.cves)
         elif args.action == 'list':
             list_ip(
                 args.ip,
