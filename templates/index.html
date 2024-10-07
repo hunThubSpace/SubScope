@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SubScope</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
+    <!-- DataTables Buttons CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/1.7.1/css/buttons.dataTables.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: cursive;
+        }
+        .overview {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .overview h4 {
+            display: none;
+            margin-bottom: 15px;
+        }
+        .overview .card {
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .overview .card-body {
+            padding: 15px;
+        }
+        
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .table th, .table td {
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+        .table th {
+            background-color: #007bff;
+            color: white;
+            font-size: 14px;
+        }
+        .table td {
+            font-size: 15px;
+        }
+
+        .dt-buttons {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container mt-4">
+    <h1 class="text-center mb-4">SubScope</h1>
+
+    <!-- Overview Section -->
+    <div class="overview">
+        <div class="row">
+            <div class="col-md-2 col-sm-4 mb-3">
+                <div class="card text-center bg-primary text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Programs</h5>
+                        <p class="card-text display-4">{{ programs_count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-4 mb-3">
+                <div class="card text-center bg-success text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Domains</h5>
+                        <p class="card-text display-4">{{ domains_count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-4 mb-3">
+                <div class="card text-center bg-warning text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Subdomains</h5>
+                        <p class="card-text display-4">{{ subdomains_count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-4 mb-3">
+                <div class="card text-center bg-info text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">URLs</h5>
+                        <p class="card-text display-4">{{ urls_count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-4 mb-3">
+                <div class="card text-center bg-danger text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">CIDRs</h5>
+                        <p class="card-text display-4">{{ cidrs_count }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" id="programs-tab" data-toggle="tab" href="#programs" role="tab" aria-controls="programs" aria-selected="true">Programs</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="domains-tab" data-toggle="tab" href="#domains" role="tab" aria-controls="domains" aria-selected="false">Domains</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="subdomains-tab" data-toggle="tab" href="#subdomains" role="tab" aria-controls="subdomains" aria-selected="false">Subdomains</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="urls-tab" data-toggle="tab" href="#urls" role="tab" aria-controls="urls" aria-selected="false">URLs</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="cidrs-tab" data-toggle="tab" href="#cidrs" role="tab" aria-controls="cidrs" aria-selected="false">CIDRs</a>
+        </li>
+    </ul>
+
+    <!-- Tabs Content -->
+    <div class="tab-content" id="myTabContent">
+        <!-- Programs Table -->
+        <div class="tab-pane fade show active" id="programs" role="tabpanel" aria-labelledby="programs-tab">
+            <div class="table-responsive mt-3">
+                <table class="table table-bordered table-striped table-hover" id="programsTable">
+                    <thead>
+                        <tr>
+                            <th>Program</th>
+                            <th>Created At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for program in programs %}
+                        <tr>
+                            <td>{{ program['program'] }}</td>
+                            <td>{{ program['created_at'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Domains Table -->
+        <div class="tab-pane fade" id="domains" role="tabpanel" aria-labelledby="domains-tab">
+            <div class="table-responsive mt-3">
+                <table class="table table-bordered table-striped table-hover" id="domainsTable">
+                    <thead>
+                        <tr>
+                            <th>Domain</th>
+                            <th>Program</th>
+                            <th>Scope</th>
+                            <th>Created At</th>
+                            <th>Updated At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for domain in domains %}
+                        <tr>
+                            <td>{{ domain['domain'] }}</td>
+                            <td>{{ domain['program'] }}</td>
+                            <td>{{ domain['scope'] }}</td>
+                            <td>{{ domain['created_at'] }}</td>
+                            <td>{{ domain['updated_at'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Subdomains Table -->
+        <div class="tab-pane fade" id="subdomains" role="tabpanel" aria-labelledby="subdomains-tab">
+            <div class="table-responsive mt-3">
+                <table class="table table-bordered table-striped table-hover" id="subdomainsTable">
+                    <thead>
+                        <tr>
+                            <th>Subdomain</th>
+                            <th>Domain</th>
+                            <th>Program</th>
+                            <th>Source</th>
+                            <th>Scope</th>
+                            <th>Resolved</th>
+                            <th>IP Address</th>
+                            <th>CDN Status</th>
+                            <th>CDN Name</th>
+                            <th>Created At</th>
+                            <th>Updated At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for subdomain in subdomains %}
+                        <tr>
+                            <td>{{ subdomain['subdomain'] }}</td>
+                            <td>{{ subdomain['domain'] }}</td>
+                            <td>{{ subdomain['program'] }}</td>
+                            <td>{{ subdomain['source'] }}</td>
+                            <td>{{ subdomain['scope'] }}</td>
+                            <td>{{ subdomain['resolved'] }}</td>
+                            <td>{{ subdomain['ip_address'] }}</td>
+                            <td>{{ subdomain['cdn_status'] }}</td>
+                            <td>{{ subdomain['cdn_name'] }}</td>
+                            <td>{{ subdomain['created_at'] }}</td>
+                            <td>{{ subdomain['updated_at'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- URLs Table -->
+        <div class="tab-pane fade" id="urls" role="tabpanel" aria-labelledby="urls-tab">
+            <div class="table-responsive mt-3">
+                <table class="table table-bordered table-striped table-hover" id="urlsTable">
+                    <thead>
+                        <tr>
+                            <th>URL</th>
+                            <th>Subdomain</th>
+                            <th>Domain</th>
+                            <th>Program</th>
+                            <th>Scheme</th>
+                            <th>Method</th>
+                            <th>Port</th>
+                            <th>Status Code</th>
+                            <th>Scope</th>
+                            <th>IP Address</th>
+                            <th>CDN Status</th>
+                            <th>CDN Name</th>
+                            <th>Title</th>
+                            <th>Webserver</th>
+                            <th>Webtech</th>
+                            <th>CNAME</th>
+                            <th>Location</th>
+                            <th>Created At</th>
+                            <th>Updated At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for url in urls %}
+                        <tr>
+                            <td>{{ url['url'] }}</td>
+                            <td>{{ url['subdomain'] }}</td>
+                            <td>{{ url['domain'] }}</td>
+                            <td>{{ url['program'] }}</td>
+                            <td>{{ url['scheme'] }}</td>
+                            <td>{{ url['method'] }}</td>
+                            <td>{{ url['port'] }}</td>
+                            <td>{{ url['status_code'] }}</td>
+                            <td>{{ url['scope'] }}</td>
+                            <td>{{ url['ip_address'] }}</td>
+                            <td>{{ url['cdn_status'] }}</td>
+                            <td>{{ url['cdn_name'] }}</td>
+                            <td>{{ url['title'] }}</td>
+                            <td>{{ url['webserver'] }}</td>
+                            <td>{{ url['webtech'] }}</td>
+                            <td>{{ url['cname'] }}</td>
+                            <td>{{ url['location'] }}</td>
+                            <td>{{ url['created_at'] }}</td>
+                            <td>{{ url['updated_at'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- CIDRs Table -->
+        <div class="tab-pane fade" id="cidrs" role="tabpanel" aria-labelledby="cidrs-tab">
+            <div class="table-responsive mt-3">
+                <table class="table table-bordered table-striped table-hover" id="cidrsTable">
+                    <thead>
+                        <tr>
+                            <th>IP</th>
+                            <th>Program</th>
+                            <th>CIDR</th>
+                            <th>ASN</th>
+                            <th>Port</th>
+                            <th>Service</th>
+                            <th>CVEs</th>
+                            <th>Created At</th>
+                            <th>Updated At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cidr in cidrs %}
+                        <tr>
+                            <td>{{ cidr['ip'] }}</td>
+                            <td>{{ cidr['program'] }}</td>
+                            <td>{{ cidr['cidr'] }}</td>
+                            <td>{{ cidr['asn'] }}</td>
+                            <td>{{ cidr['port'] }}</td>
+                            <td>{{ cidr['service'] }}</td>
+                            <td>{{ cidr['cves'] }}</td>
+                            <td>{{ cidr['created_at'] }}</td>
+                            <td>{{ cidr['updated_at'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<!-- Bootstrap JS and dependencies (Popper.js) -->
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+<!-- DataTables Buttons JS -->
+<script src="https://cdn.datatables.net/buttons/1.7.1/js/dataTables.buttons.min.js"></script>
+<!-- JSZip for Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+<!-- pdfmake for PDF export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js"></script>
+<!-- Buttons HTML5 export -->
+<script src="https://cdn.datatables.net/buttons/1.7.1/js/buttons.html5.min.js"></script>
+<!-- Buttons print export -->
+<script src="https://cdn.datatables.net/buttons/1.7.1/js/buttons.print.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+        // Initialize DataTables with export buttons
+        $('#programsTable').DataTable({
+            dom: 'Bfrtip',
+            buttons: ['copy', 'excel', 'pdf', 'print']
+        });
+        $('#domainsTable').DataTable({
+            dom: 'Bfrtip',
+            buttons: ['copy', 'excel', 'pdf', 'print']
+        });
+        $('#subdomainsTable').DataTable({
+            dom: 'Bfrtip',
+            buttons: ['copy', 'excel', 'pdf', 'print']
+        });
+        $('#urlsTable').DataTable({
+            dom: 'Bfrtip',
+            buttons: ['copy', 'excel', 'pdf', 'print']
+        });
+        $('#cidrsTable').DataTable({
+            dom: 'Bfrtip',
+            buttons: ['copy', 'excel', 'pdf', 'print']
+        });
+    });
+</script>
+
+</body>
+</html>
