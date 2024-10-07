@@ -8,7 +8,13 @@ import colorama
 from datetime import datetime, timedelta
 from colorama import Fore, Back, Style
 
+
 colorama.init()
+
+ERROR_COLOR = colorama.Fore.RED
+INFO_COLOR = colorama.Fore.YELLOW
+SUCCESS_COLOR = colorama.Fore.GREEN
+RESET_COLOR = colorama.Style.RESET_ALL
 
 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Format: YYYY-MM-DD HH:MM:SS
 conn = sqlite3.connect('scopes.db')
@@ -1420,7 +1426,7 @@ def main():
     delete_url_parser.add_argument('--status_code', type=int, help='Filter by HTTP status code')
 
     # IP commands
-    ip_parser = sub_parser.add_parser('cidr', help='Manage IPs in a program')
+    ip_parser = sub_parser.add_parser('ip', help='Manage IPs in a program')
     ip_action_parser = ip_parser.add_subparsers(dest='action')
 
     add_ip_parser = ip_action_parser.add_parser('add', help='Add an IP to a program')
@@ -1430,7 +1436,7 @@ def main():
     add_ip_parser.add_argument('--asn', help='Autonomous System Number')
     add_ip_parser.add_argument('--port', type=int, nargs='+', help='One or more port numbers')
     add_ip_parser.add_argument('--service', help='Service on the IP')
-    add_ip_parser.add_argument('--cves', help='Comma-separated CVEs associated with the IP')
+    add_ip_parser.add_argument('--cves', nargs='+', help='Comma-separated CVEs associated with the IP')
 
     list_ips_parser = ip_action_parser.add_parser('list', help='List IPs in a program')
     list_ips_parser.add_argument('ip', help='IP or CIDR (use * for all IPs)')
@@ -1494,7 +1500,8 @@ def main():
             list_urls(args.url, args.subdomain, args.domain, args.program, scheme=args.scheme, method=args.method, port=args.port, status_code=args.status_code, ip=args.ip, cdn_status=args.cdn_status, cdn_name=args.cdn_name, title=args.title, webserver=args.webserver, webtech=args.webtech, cname=args.cname, create_time=args.create_time, update_time=args.update_time, brief=args.brief, scope=args.scope, location=args.location, count=args.count)
         elif args.action == 'delete':
             delete_url(args.url, args.subdomain, args.domain, args.program, scheme=args.scheme, method=args.method, port=args.port, status_code=args.status_code, ip_address=args.ip, cdn_status=args.cdn_status, cdn_name=args.cdn_name, title=args.title, webserver=args.webserver, webtech=args.webtech, cname=args.cname, scope=args.scope)
-    elif args.command == 'cidr':
+            
+    elif args.command == 'ip':
         if args.action == 'add':
             add_ip(args.ip, args.program, args.cidr, args.asn, args.port, args.service, args.cves)
         elif args.action == 'list':
