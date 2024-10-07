@@ -8,13 +8,7 @@ import colorama
 from datetime import datetime, timedelta
 from colorama import Fore, Back, Style
 
-
 colorama.init()
-
-ERROR_COLOR = colorama.Fore.RED
-INFO_COLOR = colorama.Fore.YELLOW
-SUCCESS_COLOR = colorama.Fore.GREEN
-RESET_COLOR = colorama.Style.RESET_ALL
 
 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Format: YYYY-MM-DD HH:MM:SS
 conn = sqlite3.connect('scopes.db')
