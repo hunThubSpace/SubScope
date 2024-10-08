@@ -49,10 +49,7 @@ The script is executed from the command line. The general syntax is:
 python3 subscope.py <command> <subcommand> [options]
 ```
 
-| management     |  document                     | managment     | document                  | managment     | document                  |
-| -------------- | ------------------------------| ------------- | ------------------------- | ------------- | ------------------------- |
-| `program`      | [here](docs/workspace.md)     | `subdomain`   | [here](docs/subdomain.md) | `ip`          | [here](docs/ip.md)        |
-| `domain`       | [here](docs/domain.md)        | `live url`    | [here](docs/live.md)      | `dashboard`   | [here](docs/dashboard.md) |
+If you want to use above commands, use `-h` or `--help` for help
 
 ## Contributing
 
