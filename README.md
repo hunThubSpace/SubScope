@@ -25,7 +25,7 @@
     This will display usage information:
 
     ```
-   usage: bb_subscope [-h] {program,domain,subdomain,url,ip} ...
+   usage: ./subscope.py [-h] {program,domain,subdomain,url,ip} ...
    
    Manage programs, domains, subdomains, and IPs
    
