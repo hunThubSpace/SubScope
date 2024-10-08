@@ -51,7 +51,7 @@ python3 subscope.py <command> <subcommand> [options]
 
 | management     |  document                     | managment     | document                  | managment     | document                  |
 | -------------- | ------------------------------| ------------- | ------------------------- | ------------- | ------------------------- |
-| `Workspace`    | [here](docs/workspace.md)     | `subdomain`   | [here](docs/subdomain.md) | `ip`          | [here](docs/ip.md)        |
+| `program`      | [here](docs/workspace.md)     | `subdomain`   | [here](docs/subdomain.md) | `ip`          | [here](docs/ip.md)        |
 | `domain`       | [here](docs/domain.md)        | `live url`    | [here](docs/live.md)      | `dashboard`   | [here](docs/dashboard.md) |
 
 ## Contributing
