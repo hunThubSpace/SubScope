@@ -452,7 +452,7 @@ def add_subdomain(subdomain_or_file, domain, program, sources=None, unsources=No
             conn.commit()
             print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | adding subdomain | Subdomain {Fore.BLUE}{Style.BRIGHT}{subdomain}{Style.RESET_ALL} added to domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} in program {Fore.BLUE}{Style.BRIGHT}{program}{Style.BRIGHT} with sources: {Fore.BLUE}{Style.BRIGHT}{new_source_str}{Style.RESET_ALL}, scope: {Fore.BLUE}{Style.BRIGHT}{scope}{Style.RESET_ALL}, resolved: {Fore.BLUE}{Style.BRIGHT}{resolved}{Style.RESET_ALL}, IP: {Fore.BLUE}{Style.BRIGHT}{ip_address}{Style.RESET_ALL}, cdn_status: {Fore.BLUE}{Style.BRIGHT}{cdn_status}{Style.RESET_ALL}, CDN Name: {Fore.BLUE}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}")
 
-def list_subdomains(subdomain='*', domain='*', program='*', sources=None, scope=None, resolved=None, brief=False, source_only=False, cdn_status=None, ip=None, cdn_name=None, create_time=None, update_time=None, count=False):
+def list_subdomains(subdomain='*', domain='*', program='*', sources=None, scope=None, resolved=None, brief=False, source_only=False, cdn_status=None, ip=None, cdn_name=None, create_time=None, update_time=None, count=False, stats_source=False, stats_scope=False, stats_cdn_status=False, stats_cdn_name=False, stats_resolved=False, stats_ip_address=False, stats_program=False, stats_domain=False, stats_created_at=False, stats_updated_at=False):
     # Check if program exists if specified
     if program != '*':
         cursor.execute("SELECT * FROM programs WHERE program = ?", (program,))
@@ -546,6 +546,176 @@ def list_subdomains(subdomain='*', domain='*', program='*', sources=None, scope=
         # Further filter for --source-only
         if source_only and sources:
             filtered_subdomains = [sub for sub in filtered_subdomains if sub[2].strip() == sources[0]]
+
+        # Output statistics based on source if requested
+        if stats_source:
+            source_count = {}
+            for sub in filtered_subdomains:
+                src = sub[2].strip()
+                if src in source_count:
+                    source_count[src] += 1
+                else:
+                    source_count[src] = 1
+
+            total_count = len(filtered_subdomains)
+            print("Source statistics:")
+            for src, count in source_count.items():
+                percentage = (count / total_count) * 100 if total_count > 0 else 0
+                print(f"{src}: {count} ({percentage:.2f}%)")
+            return
+
+        # Output statistics based on scope if requested
+        if stats_scope:
+            scope_count = {}
+            for sub in filtered_subdomains:
+                sc = sub[3].strip()  # Assuming scope is at index 3
+                if sc in scope_count:
+                    scope_count[sc] += 1
+                else:
+                    scope_count[sc] = 1
+
+            total_count = len(filtered_subdomains)
+            print("Scope statistics:")
+            for sc, count in scope_count.items():
+                percentage = (count / total_count) * 100 if total_count > 0 else 0
+                print(f"{sc}: {count} ({percentage:.2f}%)")
+            return
+
+        # Output statistics based on CDN status if requested
+        if stats_cdn_status:
+            cdn_status_count = {}
+            for sub in filtered_subdomains:
+                cdn = sub[6].strip()  # Assuming cdn_status is at index 6
+                if cdn in cdn_status_count:
+                    cdn_status_count[cdn] += 1
+                else:
+                    cdn_status_count[cdn] = 1
+
+            total_count = len(filtered_subdomains)
+            print("CDN Status statistics:")
+            for cdn, count in cdn_status_count.items():
+                percentage = (count / total_count) * 100 if total_count > 0 else 0
+                print(f"{cdn}: {count} ({percentage:.2f}%)")
+            return
+
+        # Output statistics based on CDN name if requested
+        if stats_cdn_name:
+            cdn_name_count = {}
+            for sub in filtered_subdomains:
+                cdn_name_value = sub[7].strip()  # Assuming cdn_name is at index 7
+                if cdn_name_value in cdn_name_count:
+                    cdn_name_count[cdn_name_value] += 1
+                else:
+                    cdn_name_count[cdn_name_value] = 1
+
+            total_count = len(filtered_subdomains)
+            print("CDN Name statistics:")
+            for cdn_name_value, count in cdn_name_count.items():
+                percentage = (count / total_count) * 100 if total_count > 0 else 0
+                print(f"{cdn_name_value}: {count} ({percentage:.2f}%)")
+            return
+
+        # Output statistics based on resolved status if requested
+        if stats_resolved:
+            resolved_count = {}
+            for sub in filtered_subdomains:
+                res = sub[4].strip()  # Assuming resolved is at index 4
+                if res in resolved_count:
+                    resolved_count[res] += 1
+                else:
+                    resolved_count[res] = 1
+
+            total_count = len(filtered_subdomains)
+            print("Resolved Status statistics:")
+            for res, count in resolved_count.items():
+                percentage = (count / total_count) * 100 if total_count > 0 else 0
+                print(f"{res}: {count} ({percentage:.2f}%)")
+            return
+
+        # Output statistics based on IP address if requested
+        if stats_ip_address:
+            ip_address_count = {}
+            for sub in filtered_subdomains:
+                ip_address = sub[5].strip()  # Assuming ip_address is at index 5
+                if ip_address in ip_address_count:
+                    ip_address_count[ip_address] += 1
+                else:
+                    ip_address_count[ip_address] = 1
+
+            total_count = len(filtered_subdomains)
+            print("IP Address statistics:")
+            for ip_address, count in ip_address_count.items():
+                percentage = (count / total_count) * 100 if total_count > 0 else 0
+                print(f"{ip_address}: {count} ({percentage:.2f}%)")
+            return
+
+        # Output statistics based on program if requested
+        if stats_program:
+            program_count = {}
+            for sub in filtered_subdomains:
+                prog = sub[10].strip()  # Assuming program is at index 10
+                if prog in program_count:
+                    program_count[prog] += 1
+                else:
+                    program_count[prog] = 1
+
+            total_count = len(filtered_subdomains)
+            print("Program statistics:")
+            for prog, count in program_count.items():
+                percentage = (count / total_count) * 100 if total_count > 0 else 0
+                print(f"{prog}: {count} ({percentage:.2f}%)")
+            return
+
+        # Output statistics based on domain if requested
+        if stats_domain:
+            domain_count = {}
+            for sub in filtered_subdomains:
+                dom = sub[1].strip()  # Assuming domain is at index 1
+                if dom in domain_count:
+                    domain_count[dom] += 1
+                else:
+                    domain_count[dom] = 1
+
+            total_count = len(filtered_subdomains)
+            print("Domain statistics:")
+            for dom, count in domain_count.items():
+                percentage = (count / total_count) * 100 if total_count > 0 else 0
+                print(f"{dom}: {count} ({percentage:.2f}%)")
+            return
+
+        # Output statistics based on created_at if requested
+        if stats_created_at:
+            created_at_count = {}
+            for sub in filtered_subdomains:
+                created_at = sub[8].strip()  # Assuming created_at is at index 8
+                if created_at in created_at_count:
+                    created_at_count[created_at] += 1
+                else:
+                    created_at_count[created_at] = 1
+
+            total_count = len(filtered_subdomains)
+            print("Created At statistics:")
+            for created_at, count in created_at_count.items():
+                percentage = (count / total_count) * 100 if total_count > 0 else 0
+                print(f"{created_at}: {count} ({percentage:.2f}%)")
+            return
+
+        # Output statistics based on updated_at if requested
+        if stats_updated_at:
+            updated_at_count = {}
+            for sub in filtered_subdomains:
+                updated_at = sub[9].strip()  # Assuming updated_at is at index 9
+                if updated_at in updated_at_count:
+                    updated_at_count[updated_at] += 1
+                else:
+                    updated_at_count[updated_at] = 1
+
+            total_count = len(filtered_subdomains)
+            print("Updated At statistics:")
+            for updated_at, count in updated_at_count.items():
+                percentage = (count / total_count) * 100 if total_count > 0 else 0
+                print(f"{updated_at}: {count} ({percentage:.2f}%)")
+            return
 
         # Output results
         if filtered_subdomains:
@@ -806,9 +976,13 @@ def add_url(url, subdomain, domain, program, scheme=None, method=None, port=None
         print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | adding url | url {Fore.BLUE}{Style.BRIGHT}{url}{Style.RESET_ALL} added to subdomain {Fore.BLUE}{Style.BRIGHT}{subdomain}{Style.RESET_ALL} in domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} in program {Fore.BLUE}{Style.BRIGHT}{program}{Style.RESET_ALL} with details: scheme={Fore.BLUE}{Style.BRIGHT}{scheme}{Style.RESET_ALL}, method={Fore.BLUE}{Style.BRIGHT}{method}{Style.RESET_ALL}, port={Fore.BLUE}{Style.BRIGHT}{port}{Style.RESET_ALL}, status_code={Fore.BLUE}{Style.BRIGHT}{status_code}{Style.RESET_ALL}, location={Fore.BLUE}{Style.BRIGHT}{location}{Style.RESET_ALL}, scope={Fore.BLUE}{Style.BRIGHT}{scope}{Style.RESET_ALL}, cdn_status={Fore.BLUE}{Style.BRIGHT}{cdn_status}{Style.RESET_ALL}, cdn_name={Fore.BLUE}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}, title={Fore.BLUE}{Style.BRIGHT}{title}{Style.RESET_ALL}, webserver={Fore.BLUE}{Style.BRIGHT}{webserver}{Style.RESET_ALL}, webtech={Fore.BLUE}{Style.BRIGHT}{webtech}{Style.RESET_ALL}, cname={Fore.BLUE}{Style.BRIGHT}{cname}{Style.RESET_ALL}")
 
 def list_urls(url='*', subdomain='*', domain='*', program='*', scheme=None, method=None, port=None, 
-               status_code=None, ip=None, cdn_status=None, cdn_name=None, title=None, 
-               webserver=None, webtech=None, cname=None, create_time=None, update_time=None, 
-               brief=False, scope=None, location=None, count=False):
+               status_code=None, ip=None, cdn_status=None, cdn_name=None, title=None, webserver=None,
+               webtech=None, cname=None, create_time=None, update_time=None, brief=False, scope=None,
+               location=None, count=False, stats_subdomain=False, stats_domain=False, stats_program=False,
+               stats_scheme=False, stats_method=False, stats_port=False, stats_status_code=False, stats_scope=False, 
+               stats_title=False, stats_ip_address=False, stats_cdn_status=False, stats_cdn_name=False, stats_webserver=False,
+               stats_webtech=False, stats_cname=False, stats_location=False, stats_created_at=False, stats_updated_at=False):
+    
     # Check if the program exists if program is not '*'
     if program != '*':
         cursor.execute("SELECT * FROM programs WHERE program = ?", (program,))
@@ -895,8 +1069,297 @@ def list_urls(url='*', subdomain='*', domain='*', program='*', scheme=None, meth
         return
 
     # Execute the final query
-    cursor.execute(query, parameters)
+    cursor.execute(query, parameters) 
     live_urls = cursor.fetchall()
+
+    # Handle output for statistics
+    if stats_subdomain:
+        subdomain_count = {}
+        for sub in live_urls:
+            subdom = sub[1].strip()  # Assuming subdomain is at index 1
+            if subdom in subdomain_count:
+                subdomain_count[subdom] += 1
+            else:
+                subdomain_count[subdom] = 1
+        
+        total_count = len(live_urls)
+        print("Subdomain statistics:")
+        for subdom, count in subdomain_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{subdom}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_domain:
+        domain_count = {}
+        for sub in live_urls:
+            dom = sub[2].strip()  # Assuming domain is at index 2
+            if dom in domain_count:
+                domain_count[dom] += 1
+            else:
+                domain_count[dom] = 1
+
+        total_count = len(live_urls)
+        print("Domain statistics:")
+        for dom, count in domain_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{dom}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_program:
+        program_count = {}
+        for sub in live_urls:
+            prog = sub[3].strip()  # Assuming program is at index 3
+            if prog in program_count:
+                program_count[prog] += 1
+            else:
+                program_count[prog] = 1
+
+        total_count = len(live_urls)
+        print("Program statistics:")
+        for prog, count in program_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{prog}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_scheme:
+        scheme_count = {}
+        for sub in live_urls:
+            sch = sub[4].strip()  # Assuming scheme is at index 4
+            if sch in scheme_count:
+                scheme_count[sch] += 1
+            else:
+                scheme_count[sch] = 1
+
+        total_count = len(live_urls)
+        print("Scheme statistics:")
+        for sch, count in scheme_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{sch}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_method:
+        method_count = {}
+        for sub in live_urls:
+            meth = sub[5].strip()  # Assuming method is at index 5
+            if meth in method_count:
+                method_count[meth] += 1
+            else:
+                method_count[meth] = 1
+
+        total_count = len(live_urls)
+        print("Method statistics:")
+        for meth, count in method_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{meth}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_port:
+        port_count = {}
+        for sub in live_urls:
+            prt = sub[6]  # Assuming port is at index 6
+            if prt in port_count:
+                port_count[prt] += 1
+            else:
+                port_count[prt] = 1
+
+        total_count = len(live_urls)
+        print("Port statistics:")
+        for prt, count in port_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{prt}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_status_code:
+        status_code_count = {}
+        for sub in live_urls:
+            status = sub[7]  # Assuming status_code is at index 7
+            if status in status_code_count:
+                status_code_count[status] += 1
+            else:
+                status_code_count[status] = 1
+
+        total_count = len(live_urls)
+        print("Status Code statistics:")
+        for status, count in status_code_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{status}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_scope:
+        scope_count = {}
+        for sub in live_urls:
+            sc = sub[15].strip()  # Assuming scope is at index 15 (adjust based on actual schema)
+            if sc in scope_count:
+                scope_count[sc] += 1
+            else:
+                scope_count[sc] = 1
+
+        total_count = len(live_urls)
+        print("Scope statistics:")
+        for sc, count in scope_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{sc}: {count} ({percentage:.2f}%)")
+        return
+    
+    if stats_title:
+        title_count = {}
+        for sub in live_urls:
+            title_val = sub[11].strip()  # Assuming title is at index 11
+            if title_val in title_count:
+                title_count[title_val] += 1
+            else:
+                title_count[title_val] = 1
+
+        total_count = len(live_urls)
+        print("Title statistics:")
+        for title_val, count in title_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{title_val}: {count} ({percentage:.2f}%)")
+        return
+    
+    if stats_ip_address:
+        ip_count = {}
+        for sub in live_urls:
+            ip_val = sub[8].strip()  # Assuming ip_address is at index 8
+            if ip_val in ip_count:
+                ip_count[ip_val] += 1
+            else:
+                ip_count[ip_val] = 1
+
+        total_count = len(live_urls)
+        print("IP Address statistics:")
+        for ip_val, count in ip_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{ip_val}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_cdn_status:
+        cdn_status_count = {}
+        for sub in live_urls:
+            cdn_status_val = sub[9].strip()  # Assuming cdn_status is at index 9
+            if cdn_status_val in cdn_status_count:
+                cdn_status_count[cdn_status_val] += 1
+            else:
+                cdn_status_count[cdn_status_val] = 1
+
+        total_count = len(live_urls)
+        print("CDN Status statistics:")
+        for cdn_status_val, count in cdn_status_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{cdn_status_val}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_cdn_name:
+        cdn_name_count = {}
+        for sub in live_urls:
+            cdn_name_val = sub[10].strip()  # Assuming cdn_name is at index 10
+            if cdn_name_val in cdn_name_count:
+                cdn_name_count[cdn_name_val] += 1
+            else:
+                cdn_name_count[cdn_name_val] = 1
+
+        total_count = len(live_urls)
+        print("CDN Name statistics:")
+        for cdn_name_val, count in cdn_name_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{cdn_name_val}: {count} ({percentage:.2f}%)")
+        return
+    
+    if stats_webserver:
+        webserver_count = {}
+        for sub in live_urls:
+            webserver_val = sub[12].strip()  # Assuming webserver is at index 12
+            if webserver_val in webserver_count:
+                webserver_count[webserver_val] += 1
+            else:
+                webserver_count[webserver_val] = 1
+
+        total_count = len(live_urls)
+        print("Webserver statistics:")
+        for webserver_val, count in webserver_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{webserver_val}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_webtech:
+        webtech_count = {}
+        for sub in live_urls:
+            webtech_val = sub[13].strip()  # Assuming webtech is at index 13
+            if webtech_val in webtech_count:
+                webtech_count[webtech_val] += 1
+            else:
+                webtech_count[webtech_val] = 1
+
+        total_count = len(live_urls)
+        print("Webtech statistics:")
+        for webtech_val, count in webtech_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{webtech_val}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_cname:
+        cname_count = {}
+        for sub in live_urls:
+            cname_val = sub[14].strip()  # Assuming cname is at index 14
+            if cname_val in cname_count:
+                cname_count[cname_val] += 1
+            else:
+                cname_count[cname_val] = 1
+
+        total_count = len(live_urls)
+        print("CNAME statistics:")
+        for cname_val, count in cname_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{cname_val}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_location:
+        location_count = {}
+        for sub in live_urls:
+            location_val = sub[15].strip()  # Assuming location is at index 15
+            if location_val in location_count:
+                location_count[location_val] += 1
+            else:
+                location_count[location_val] = 1
+
+        total_count = len(live_urls)
+        print("Location statistics:")
+        for location_val, count in location_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{location_val}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_created_at:
+        created_at_count = {}
+        for sub in live_urls:
+            created_at_val = sub[16]  # Assuming created_at is at index 16
+            if created_at_val in created_at_count:
+                created_at_count[created_at_val] += 1
+            else:
+                created_at_count[created_at_val] = 1
+
+        total_count = len(live_urls)
+        print("Created At statistics:")
+        for created_at_val, count in created_at_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{created_at_val}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_updated_at:
+        updated_at_count = {}
+        for sub in live_urls:
+            updated_at_val = sub[17]  # Assuming updated_at is at index 17
+            if updated_at_val in updated_at_count:
+                updated_at_count[updated_at_val] += 1
+            else:
+                updated_at_count[updated_at_val] = 1
+
+        total_count = len(live_urls)
+        print("Updated At statistics:")
+        for updated_at_val, count in updated_at_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{updated_at_val}: {count} ({percentage:.2f}%)")
+        return
 
     # Handle output
     if live_urls:
@@ -1093,7 +1556,8 @@ def add_ip(ip, program, cidr=None, asn=None, port=None, service=None, cves=None)
         print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | updating IP | {str(e)}")
 
 def list_ip(ip='*', program='*', cidr=None, asn=None, port=None, service=None, 
-            cves=None, brief=False, create_time=None, update_time=None, count=False):
+            cves=None, brief=False, create_time=None, update_time=None, count=False, 
+            stats_domain=False, stats_cidr=False, stats_asn=False, stats_port=False):
     # Get the current timestamp for logging purposes
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -1162,6 +1626,71 @@ def list_ip(ip='*', program='*', cidr=None, asn=None, port=None, service=None,
     # Execute the final query
     cursor.execute(query, parameters)
     ips = cursor.fetchall()
+
+    # Handle statistics
+    if stats_domain:
+        domain_count = {}
+        for ip_record in ips:
+            domain = ip_record[0].split('.')[1] if '.' in ip_record[0] else "Unknown"  # Example logic for domain extraction
+            if domain in domain_count:
+                domain_count[domain] += 1
+            else:
+                domain_count[domain] = 1
+        
+        print("Domain statistics:")
+        total_count = len(ips)
+        for domain, count in domain_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{domain}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_cidr:
+        cidr_count = {}
+        for ip_record in ips:
+            cidr_val = ip_record[1]  # Assuming CIDR is at index 1
+            if cidr_val in cidr_count:
+                cidr_count[cidr_val] += 1
+            else:
+                cidr_count[cidr_val] = 1
+        
+        print("CIDR statistics:")
+        total_count = len(ips)
+        for cidr_val, count in cidr_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{cidr_val}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_asn:
+        asn_count = {}
+        for ip_record in ips:
+            asn_val = ip_record[2]  # Assuming ASN is at index 2
+            if asn_val in asn_count:
+                asn_count[asn_val] += 1
+            else:
+                asn_count[asn_val] = 1
+        
+        print("ASN statistics:")
+        total_count = len(ips)
+        for asn_val, count in asn_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{asn_val}: {count} ({percentage:.2f}%)")
+        return
+
+    if stats_port:
+        port_count = {}
+        for ip_record in ips:
+            port_val = ip_record[3]  # Assuming port is at index 3
+            if port_val in port_count:
+                port_count[port_val] += 1
+            else:
+                port_count[port_val] = 1
+        
+        print("Port statistics:")
+        total_count = len(ips)
+        for port_val, count in port_count.items():
+            percentage = (count / total_count) * 100 if total_count > 0 else 0
+            print(f"{port_val}: {count} ({percentage:.2f}%)")
+        return
 
     # Handle output
     if ips:
@@ -1334,11 +1863,10 @@ def main():
     add_subdomain_parser.add_argument('--cdn_name', default='none', help='Name of the CDN provider')
     add_subdomain_parser.add_argument('--uncdn_name', action='store_true', help='Remove CDN name from the subdomain')
 
-
     list_subdomains_parser = subdomain_action_parser.add_parser('list', help='List subdomains')
     list_subdomains_parser.add_argument('subdomain', help='Subdomain name or wildcard')
     list_subdomains_parser.add_argument('domain', help='Domain name or wildcard')
-    list_subdomains_parser.add_argument('program', help='program name')
+    list_subdomains_parser.add_argument('program', help='Program name')
     list_subdomains_parser.add_argument('--source', nargs='*', help='Filter by source(s)')
     list_subdomains_parser.add_argument('--source-only', action='store_true', help='Show only matching subdomains')
     list_subdomains_parser.add_argument('--scope', choices=['inscope', 'outscope'], help='Filter by scope')
@@ -1350,6 +1878,16 @@ def main():
     list_subdomains_parser.add_argument('--create_time', help='Filter by creation time')
     list_subdomains_parser.add_argument('--update_time', help='Filter by last update time')
     list_subdomains_parser.add_argument('--count', action='store_true', help='Count the number of returned records')
+    list_subdomains_parser.add_argument('--stats-source', action='store_true', help='Show statistics based on source')
+    list_subdomains_parser.add_argument('--stats-scope', action='store_true', help='Show statistics based on scope')
+    list_subdomains_parser.add_argument('--stats-cdn-status', action='store_true', help='Show statistics based on CDN status')
+    list_subdomains_parser.add_argument('--stats-cdn-name', action='store_true', help='Show statistics based on CDN name')
+    list_subdomains_parser.add_argument('--stats-resolved', action='store_true', help='Show statistics based on resolved status')
+    list_subdomains_parser.add_argument('--stats-ip-address', action='store_true', help='Show statistics based on IP address')
+    list_subdomains_parser.add_argument('--stats-program', action='store_true', help='Show statistics based on program')
+    list_subdomains_parser.add_argument('--stats-domain', action='store_true', help='Show statistics based on domain')
+    list_subdomains_parser.add_argument('--stats-created-at', action='store_true', help='Show statistics based on created time')
+    list_subdomains_parser.add_argument('--stats-updated-at', action='store_true', help='Show statistics based on updated time')
 
 
     delete_subdomain_parser = subdomain_action_parser.add_parser('delete', help='Delete subdomains')
@@ -1408,6 +1946,24 @@ def main():
     list_url_parser.add_argument('--scope', help='Filter by scope')
     list_url_parser.add_argument('--location', help='Filter by redirect location')
     list_url_parser.add_argument('--count', action='store_true', help='Count the number of matching URLs')
+    list_url_parser.add_argument('--stats-subdomain', action='store_true', help='Show statistics based on subdomain')
+    list_url_parser.add_argument('--stats-domain', action='store_true', help='Show statistics based on domain')
+    list_url_parser.add_argument('--stats-program', action='store_true', help='Show statistics based on program')
+    list_url_parser.add_argument('--stats-scheme', action='store_true', help='Show statistics based on scheme')
+    list_url_parser.add_argument('--stats-method', action='store_true', help='Show statistics based on HTTP method')
+    list_url_parser.add_argument('--stats-port', action='store_true', help='Show statistics based on port')
+    list_url_parser.add_argument('--stats-status-code', action='store_true', help='Show statistics based on status code')
+    list_url_parser.add_argument('--stats-scope', action='store_true', help='Show statistics based on scope')
+    list_url_parser.add_argument('--stats-title', action='store_true', help='Show statistics based on title')
+    list_url_parser.add_argument('--stats-ip-address', action='store_true', help='Show statistics based on IP address')
+    list_url_parser.add_argument('--stats-cdn-status', action='store_true', help='Show statistics based on CDN status')
+    list_url_parser.add_argument('--stats-cdn-name', action='store_true', help='Show statistics based on CDN name')
+    list_url_parser.add_argument('--stats-webserver', action='store_true', help='Show statistics based on webserver')
+    list_url_parser.add_argument('--stats-webtech', action='store_true', help='Show statistics based on web technologies')
+    list_url_parser.add_argument('--stats-cname', action='store_true', help='Show statistics based on CNAME')
+    list_url_parser.add_argument('--stats-location', action='store_true', help='Show statistics based on location')
+    list_url_parser.add_argument('--stats-created-at', action='store_true', help='Show statistics based on creation time')
+    list_url_parser.add_argument('--stats-updated-at', action='store_true', help='Show statistics based on update time')
 
     delete_url_parser = live_action_parser.add_parser('delete', help='Delete urls')
     delete_url_parser.add_argument('url', help='URL of the live subdomain')
@@ -1444,6 +2000,10 @@ def main():
     list_ips_parser.add_argument('--create_time', help='Filter by creation time')
     list_ips_parser.add_argument('--update_time', help='Filter by update time')
     list_ips_parser.add_argument('--count', action='store_true', help='Show count of matching IPs')
+    list_ips_parser.add_argument('--stats-domain', action='store_true', help='Show statistics by domain')
+    list_ips_parser.add_argument('--stats-cidr', action='store_true', help='Show statistics by CIDR')
+    list_ips_parser.add_argument('--stats-asn', action='store_true', help='Show statistics by ASN')
+    list_ips_parser.add_argument('--stats-port', action='store_true', help='Show statistics by port')
 
     delete_ip_parser = ip_action_parser.add_parser('delete', help='Delete IPs')
     delete_ip_parser.add_argument('ip', help='IP or CIDR (use * for all IPs)')  # Specify IP or CIDR
@@ -1475,9 +2035,17 @@ def main():
 
     elif args.command == 'subdomain':
         if args.action == 'add':
-            add_subdomain(args.subdomain, args.domain, args.program, sources=args.source, unsources=args.unsource, scope=args.scope, resolved=args.resolved, ip_address=args.ip, unip=args.unip, cdn_status=args.cdn_status, cdn_name=args.cdn_name, uncdn_name=args.uncdn_name)
+            add_subdomain(args.subdomain, args.domain, args.program, sources=args.source, unsources=args.unsource, 
+                          scope=args.scope, resolved=args.resolved, ip_address=args.ip, unip=args.unip, cdn_status=args.cdn_status, 
+                          cdn_name=args.cdn_name, uncdn_name=args.uncdn_name)
         elif args.action == 'list':
-            list_subdomains(subdomain=args.subdomain, domain=args.domain, program=args.program, sources=args.source, scope=args.scope, resolved=args.resolved, brief=args.brief, source_only=args.source_only, cdn_status=args.cdn_status, ip=args.ip, cdn_name=args.cdn_name, count=args.count, create_time=args.create_time, update_time=args.update_time)
+            list_subdomains(subdomain=args.subdomain, domain=args.domain, program=args.program, sources=args.source,
+                            scope=args.scope, resolved=args.resolved, brief=args.brief, source_only=args.source_only,
+                            cdn_status=args.cdn_status, ip=args.ip, cdn_name=args.cdn_name, count=args.count,
+                            create_time=args.create_time, update_time=args.update_time, stats_source=args.stats_source,
+                            stats_scope=args.stats_scope, stats_cdn_status=args.stats_cdn_status, stats_cdn_name=args.stats_cdn_name,
+                            stats_resolved=args.stats_resolved, stats_ip_address=args.stats_ip_address, stats_domain=args.stats_domain, 
+                            stats_program=args.stats_program, stats_created_at=args.stats_created_at, stats_updated_at=args.stats_updated_at)
         elif args.action == 'delete':
             if os.path.isfile(args.subdomain):
                 with open(args.subdomain, 'r') as file:
@@ -1485,21 +2053,37 @@ def main():
                 for subdomain in subdomains:
                     delete_subdomain(subdomain, args.domain, args.program, args.scope, args.source, args.resolved)
             else:
-                delete_subdomain(args.subdomain, args.domain, args.program, args.scope, args.source, args.resolved, args.ip, args.cdn_status, args.cdn_name) if args.subdomain != '*' else delete_subdomain('*', args.domain, args.program, args.scope, args.source, args.resolved)
+                delete_subdomain(args.subdomain, args.domain, args.program, args.scope, args.source, args.resolved,args.ip, args.cdn_status,
+                                 args.cdn_name) if args.subdomain != '*' else delete_subdomain('*', args.domain, args.program, args.scope, args.source, args.resolved)
 
     elif args.command == 'url':
         if args.action == 'add':
-            add_url(args.url, args.subdomain, args.domain, args.program, scheme=args.scheme, method=args.method, port=args.port, status_code=args.status_code, ip_address=args.ip, cdn_status=args.cdn_status, cdn_name=args.cdn_name, title=args.title, webserver=args.webserver, webtech=args.webtech, cname=args.cname, scope=args.scope, location=args.location)
+            add_url(args.url, args.subdomain, args.domain, args.program, scheme=args.scheme, method=args.method,
+                    port=args.port, status_code=args.status_code, ip_address=args.ip, cdn_status=args.cdn_status,
+                    cdn_name=args.cdn_name, title=args.title, webserver=args.webserver, webtech=args.webtech,
+                    cname=args.cname, scope=args.scope, location=args.location)
         elif args.action == 'list':
-            list_urls(args.url, args.subdomain, args.domain, args.program, scheme=args.scheme, method=args.method, port=args.port, status_code=args.status_code, ip=args.ip, cdn_status=args.cdn_status, cdn_name=args.cdn_name, title=args.title, webserver=args.webserver, webtech=args.webtech, cname=args.cname, create_time=args.create_time, update_time=args.update_time, brief=args.brief, scope=args.scope, location=args.location, count=args.count)
+            list_urls(args.url, args.subdomain, args.domain, args.program, scheme=args.scheme, method=args.method, port=args.port,
+                      status_code=args.status_code, ip=args.ip, cdn_status=args.cdn_status, cdn_name=args.cdn_name, title=args.title,
+                      webserver=args.webserver, webtech=args.webtech, cname=args.cname, create_time=args.create_time, update_time=args.update_time,
+                      brief=args.brief, scope=args.scope, location=args.location, count=args.count, stats_domain=args.stats_domain,
+                      stats_program=args.stats_program, stats_subdomain=args.stats_subdomain, stats_cdn_name=args.stats_cdn_name,
+                      stats_cdn_status=args.stats_cdn_status, stats_cname=args.stats_cname, stats_created_at=args.stats_created_at,
+                      stats_ip_address=args.stats_ip_address, stats_location=args.stats_location, stats_method=args.stats_method,
+                      stats_port=args.stats_port, stats_scheme=args.stats_scheme, stats_scope=args.stats_scope, stats_status_code=args.stats_status_code,
+                      stats_title=args.stats_title, stats_updated_at=args.stats_updated_at, stats_webserver=args.stats_webserver, stats_webtech=args.stats_webtech)
         elif args.action == 'delete':
-            delete_url(args.url, args.subdomain, args.domain, args.program, scheme=args.scheme, method=args.method, port=args.port, status_code=args.status_code, ip_address=args.ip, cdn_status=args.cdn_status, cdn_name=args.cdn_name, title=args.title, webserver=args.webserver, webtech=args.webtech, cname=args.cname, scope=args.scope)
+            delete_url(args.url, args.subdomain, args.domain, args.program, scheme=args.scheme, method=args.method, port=args.port,
+                       status_code=args.status_code, ip_address=args.ip, cdn_status=args.cdn_status, cdn_name=args.cdn_name,
+                       title=args.title, webserver=args.webserver, webtech=args.webtech, cname=args.cname, scope=args.scope)
             
     elif args.command == 'ip':
         if args.action == 'add':
             add_ip(args.ip, args.program, args.cidr, args.asn, args.port, args.service, args.cves)
         elif args.action == 'list':
-            list_ip(args.ip, args.program, cidr=args.cidr, asn=args.asn, port=args.port, service=args.service, brief=args.brief, cves=args.cves, create_time=args.create_time, update_time=args.update_time, count=args.count)
+            list_ip(args.ip, args.program, cidr=args.cidr, asn=args.asn, port=args.port, service=args.service,
+                    brief=args.brief, cves=args.cves, create_time=args.create_time, update_time=args.update_time, count=args.count,
+                    stats_asn=args.stats_asn, stats_cidr=args.stats_cidr, stats_domain=args.stats_domain, stats_port=args.stats_port)
         elif args.action == 'delete':
             delete_ip(ip=args.ip, program=args.program, asn=args.asn, cidr=args.cidr, port=args.port, service=args.service, cves=args.cves)
 
