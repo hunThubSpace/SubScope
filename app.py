@@ -35,6 +35,7 @@ def index():
     programs = conn.execute('SELECT * FROM programs').fetchall()
     domains = conn.execute('SELECT * FROM domains').fetchall()
     subdomains = conn.execute('SELECT * FROM subdomains').fetchall()
+    resolved = conn.execute('SELECT * FROM subdomains WHERE resolved="yes"').fetchall()
     urls = conn.execute('SELECT * FROM urls').fetchall()
     cidrs = conn.execute('SELECT * FROM cidrs').fetchall()
 
@@ -44,13 +45,14 @@ def index():
     subdomains_count = len(subdomains)
     urls_count = len(urls)
     cidrs_count = len(cidrs)
+    resolved_count = len(resolved)
 
     return render_template('index.html', 
                            programs=programs, domains=domains, subdomains=subdomains, 
                            urls=urls, cidrs=cidrs,
                            programs_count=programs_count, domains_count=domains_count, 
                            subdomains_count=subdomains_count, urls_count=urls_count, 
-                           cidrs_count=cidrs_count)
+                           cidrs_count=cidrs_count, resolved_count=resolved_count)
 
 if __name__ == '__main__':
     app.run(debug=True)
