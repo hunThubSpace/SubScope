@@ -1,75 +1,75 @@
-# Workspace Management
+# program Management
 
 ```bash
-➜ ./subscope.py workspace -h
-usage: subscope.py workspace [-h] {create,list,delete} ...
+➜ ./subscope.py program -h
+usage: bb_subscope program [-h] {add,list,delete} ...
 
 positional arguments:
-  {create,list,delete}
-    create              Create a new workspace
-    list                List workspaces
-    delete              Delete a workspace
+  {add,list,delete}
+    add              add a new program
+    list             List programs
+    delete           Delete a program
 
 options:
-  -h, --help            show this help message and exit
+  -h, --help         show this help message and exit
 ```
 
 ## Usage
-* Create a Workspace (workspace can be company_name or a program in bugbounty)
+* Create a program (program can be company_name or a program in bugbounty)
     
     ```bash
-    ➜ ./subscope.py workspace create tesla_wk
-    2024-10-04 22:56:55 | success | adding workspace | workspace tesla_wk created
+    ➜ ./subscope.py program add tesla_wk
+    2024-10-04 22:56:55 | success | adding program | program tesla_wk created
     ```
-* Show information about a workspace
+* Show information about a program
 
     ```bash
-    ➜ ./subscope.py workspace list tesla_wk
+    ➜ ./subscope.py program list tesla_wk
     {
-        "workspaces": [
+        "programs": [
             {
-                "workspace": "tesla_wk",
+                "program": "tesla_wk",
                 "created_at": "2024-10-04 22:56:55"
             }
         ]
     }
     ```
 
-* List all workspaces (placed * instead of workspace name)
+* List all programs (placed * instead of program name)
 
     ```bash
-    ➜ ./subscope.py workspace list '*'
+    ➜ ./subscope.py program list '*'
     {
-        "workspaces": [
+        "programs": [
             {
-                "workspace": "tesla_wk",
+                "program": "tesla_wk",
                 "created_at": "2024-10-04 22:56:55"
             },
             {
-                "workspace": "walmart_wk",
+                "program": "walmart_wk",
                 "created_at": "2024-10-04 23:01:17"
             }
         ]
     }
     ```
-* List the workspace names (suitable for stdin)
+* List the program names (suitable for stdin)
 
     ```bash
-    ➜ ./subscope.py workspace list '*' --brief
+    ➜ ./subscope.py program list '*' --brief
     tesla_wk
     walmart_wk
     ```
 
-* Delete a workspace (also delete all domains, subdomains and live subdomains related to this workspace)
+* Delete a program (also delete all domains, subdomains and live subdomains related to this program)
 
     ```bash
-    ➜ ./subscope.py workspace delete walmart_wk
-    2024-10-04 23:04:56 | success | deleting workspace | workspace walmart_wk deleted with 0 domains, 0 subdomains and 0 urls
+    ➜ ./subscope.py program delete walmart_wk
+    2024-10-04 23:04:56 | success | deleting program | program walmart_wk deleted with 0 domains, 0 subdomains and 0 urls
     ```
 
 * Delete all entries into database (flush)
 
     ```bash
-    ➜ ./subscope.py workspace delete '*'
-    2024-10-04 23:07:32 | success | deleting workspace | deleted 1 workspaces, 0 domains, 0 subdomains and 0 urls
+    ➜ ./subscope.py program delete '*'
+    2024-10-04 23:07:32 | success | deleting program | deleted 1 programs, 0 domains, 0 subdomains and 0 urls
     ```
