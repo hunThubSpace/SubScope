@@ -44,11 +44,36 @@ def add_program(program):
 def list_programs(program='*', brief=False, count=False):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # For potential logging
     try:
-        # Fetch programs from the database
+        # Fetch programs from the database along with the counts of domains, subdomains, URLs, and IPs
         if program == '*':
-            cursor.execute("SELECT program, created_at FROM programs")
+            cursor.execute("""
+                SELECT p.program, p.created_at, 
+                       COUNT(DISTINCT d.domain) AS domain_count, 
+                       COUNT(DISTINCT sd.subdomain) AS subdomain_count,
+                       COUNT(DISTINCT u.url) AS url_count,
+                       COUNT(DISTINCT ip.ip) AS ip_count 
+                FROM programs p 
+                LEFT JOIN domains d ON p.program = d.program 
+                LEFT JOIN subdomains sd ON d.domain = sd.domain 
+                LEFT JOIN urls u ON p.program = u.program 
+                LEFT JOIN cidrs ip ON p.program = ip.program 
+                GROUP BY p.program, p.created_at
+            """)
         else:
-            cursor.execute("SELECT program, created_at FROM programs WHERE program = ?", (program,))
+            cursor.execute("""
+                SELECT p.program, p.created_at, 
+                       COUNT(DISTINCT d.domain) AS domain_count, 
+                       COUNT(DISTINCT sd.subdomain) AS subdomain_count,
+                       COUNT(DISTINCT u.url) AS url_count,
+                       COUNT(DISTINCT ip.ip) AS ip_count 
+                FROM programs p 
+                LEFT JOIN domains d ON p.program = d.program 
+                LEFT JOIN subdomains sd ON d.domain = sd.domain 
+                LEFT JOIN urls u ON p.program = u.program 
+                LEFT JOIN cidrs ip ON p.program = ip.program 
+                WHERE p.program = ? 
+                GROUP BY p.program, p.created_at
+            """, (program,))
         
         programs = cursor.fetchall()
 
@@ -68,8 +93,9 @@ def list_programs(program='*', brief=False, count=False):
             for ws in programs:
                 print(ws[0])  # Print each program name in brief mode
         else:
-            # Detailed mode: print program with created_at as JSON
-            program_list = [{'program': ws[0], 'created_at': ws[1]} for ws in programs]
+            # Detailed mode: print program with created_at, domain count, subdomain count, URL count, and IP count as JSON
+            program_list = [{'program': ws[0], 'domains': ws[2], 
+                             'subdomains': ws[3], 'urls': ws[4], 'ips': ws[5], 'created_at': ws[1]} for ws in programs]
             print(json.dumps({"programs": program_list}, indent=4))
 
     except sqlite3.DatabaseError as e:
@@ -208,7 +234,7 @@ def add_domain(domain_or_file, program, scope=None):
 
 def list_domains(domain='*', program='*', brief=False, count=False, scope=None):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # For potential logging
-    
+
     # Check if the program is specific or all
     if program != '*':
         cursor.execute("SELECT * FROM programs WHERE program = ?", (program,))
@@ -216,30 +242,50 @@ def list_domains(domain='*', program='*', brief=False, count=False, scope=None):
             print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | listing domain | program {Fore.BLUE}{Style.BRIGHT}{program}{Style.RESET_ALL} does not exist")
             return
         
-        query = "SELECT domain, program, scope, created_at, updated_at FROM domains WHERE program = ?"
+        query = """
+            SELECT d.domain, d.program, d.scope, d.created_at, d.updated_at, 
+                   COUNT(DISTINCT sd.subdomain) AS subdomain_count,
+                   COUNT(DISTINCT u.url) AS url_count
+            FROM domains d 
+            LEFT JOIN subdomains sd ON d.domain = sd.domain 
+            LEFT JOIN urls u ON d.domain = u.domain 
+            WHERE d.program = ?
+        """
         params = [program]
 
         if domain != '*':
-            query += " AND domain = ?"
+            query += " AND d.domain = ?"
             params.append(domain)
 
         if scope:
-            query += " AND scope = ?"
+            query += " AND d.scope = ?"
             params.append(scope)
 
+        query += " GROUP BY d.domain, d.program, d.scope, d.created_at, d.updated_at"
         cursor.execute(query, params)
     else:
-        query = "SELECT domain, program, scope, created_at, updated_at FROM domains"
+        query = """
+            SELECT d.domain, d.program, d.scope, d.created_at, d.updated_at, 
+                   COUNT(DISTINCT sd.subdomain) AS subdomain_count,
+                   COUNT(DISTINCT u.url) AS url_count
+            FROM domains d 
+            LEFT JOIN subdomains sd ON d.domain = sd.domain 
+            LEFT JOIN urls u ON d.domain = u.domain 
+        """
         params = []
 
         if domain != '*':
-            query += " WHERE domain = ?"
+            query += " WHERE d.domain = ?"
             params.append(domain)
 
         if scope:
-            query += " WHERE scope = ?"
+            if 'WHERE' in query:
+                query += " AND d.scope = ?"
+            else:
+                query += " WHERE d.scope = ?"
             params.append(scope)
 
+        query += " GROUP BY d.domain, d.program, d.scope, d.created_at, d.updated_at"
         cursor.execute(query, params)
 
     domains = cursor.fetchall()
@@ -263,6 +309,8 @@ def list_domains(domain='*', program='*', brief=False, count=False, scope=None):
                 'domain': domain[0],
                 'program': domain[1],
                 'scope': domain[2],
+                'subdomains': domain[5],
+                'urls': domain[6],
                 'created_at': domain[3],
                 'updated_at': domain[4]
             }
@@ -453,6 +501,8 @@ def add_subdomain(subdomain_or_file, domain, program, sources=None, unsources=No
             print(f"{timestamp} | {Fore.GREEN}success{Style.RESET_ALL} | adding subdomain | Subdomain {Fore.BLUE}{Style.BRIGHT}{subdomain}{Style.RESET_ALL} added to domain {Fore.BLUE}{Style.BRIGHT}{domain}{Style.RESET_ALL} in program {Fore.BLUE}{Style.BRIGHT}{program}{Style.BRIGHT} with sources: {Fore.BLUE}{Style.BRIGHT}{new_source_str}{Style.RESET_ALL}, scope: {Fore.BLUE}{Style.BRIGHT}{scope}{Style.RESET_ALL}, resolved: {Fore.BLUE}{Style.BRIGHT}{resolved}{Style.RESET_ALL}, IP: {Fore.BLUE}{Style.BRIGHT}{ip_address}{Style.RESET_ALL}, cdn_status: {Fore.BLUE}{Style.BRIGHT}{cdn_status}{Style.RESET_ALL}, CDN Name: {Fore.BLUE}{Style.BRIGHT}{cdn_name}{Style.RESET_ALL}")
 
 def list_subdomains(subdomain='*', domain='*', program='*', sources=None, scope=None, resolved=None, brief=False, source_only=False, cdn_status=None, ip=None, cdn_name=None, create_time=None, update_time=None, count=False, stats_source=False, stats_scope=False, stats_cdn_status=False, stats_cdn_name=False, stats_resolved=False, stats_ip_address=False, stats_program=False, stats_domain=False, stats_created_at=False, stats_updated_at=False):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # For potential logging
+
     # Check if program exists if specified
     if program != '*':
         cursor.execute("SELECT * FROM programs WHERE program = ?", (program,))
@@ -462,65 +512,69 @@ def list_subdomains(subdomain='*', domain='*', program='*', sources=None, scope=
 
     # Base query and parameters
     query = """
-        SELECT subdomain, domain, source, scope, resolved, ip_address, cdn_status, cdn_name, created_at, updated_at, program 
-        FROM subdomains 
+        SELECT sd.subdomain, sd.domain, sd.source, sd.scope, sd.resolved, sd.ip_address, sd.cdn_status, sd.cdn_name, sd.created_at, sd.updated_at, sd.program, COUNT(DISTINCT u.url) AS url_count
+        FROM subdomains sd 
+        LEFT JOIN urls u ON sd.subdomain = u.subdomain AND sd.domain = u.domain 
     """
     parameters = []
     filters = []
 
     # Add filtering for program if not '*'
     if program != '*':
-        filters.append("program = ?")
+        filters.append("sd.program = ?")
         parameters.append(program)
 
     # Handle wildcard for domain and subdomain
     if domain != '*':
-        filters.append("domain = ?")
+        filters.append("sd.domain = ?")
         parameters.append(domain)
 
     if subdomain != '*':
-        filters.append("subdomain = ?")
+        filters.append("sd.subdomain = ?")
         parameters.append(subdomain)
 
     # Add filtering for scope
     if scope:
-        filters.append("scope = ?")
+        filters.append("sd.scope = ?")
         parameters.append(scope)
 
     # Add filtering for resolved status
     if resolved:
-        filters.append("resolved = ?")
+        filters.append("sd.resolved = ?")
         parameters.append(resolved)
 
     # Add filtering for cdn_status
     if cdn_status:
-        filters.append("cdn_status = ?")
+        filters.append("sd.cdn_status = ?")
         parameters.append(cdn_status)
 
     # Add filtering for ip_address
     if ip:
-        filters.append("ip_address = ?")
+        filters.append("sd.ip_address = ?")
         parameters.append(ip)
 
     # Add filtering for cdn_name
     if cdn_name:
-        filters.append("cdn_name = ?")
+        filters.append("sd.cdn_name = ?")
         parameters.append(cdn_name)
 
     # Parse create_time and update_time and add time range filters
     if create_time:
         start_time, end_time = parse_time_range(create_time)
-        filters.append("created_at BETWEEN ? AND ?")
+        filters.append("sd.created_at BETWEEN ? AND ?")
         parameters.extend([start_time, end_time])
 
     if update_time:
         start_time, end_time = parse_time_range(update_time)
-        filters.append("updated_at BETWEEN ? AND ?")
+        filters.append("sd.updated_at BETWEEN ? AND ?")
         parameters.extend([start_time, end_time])
 
     # Construct final query with filters
     if filters:
         query += " WHERE " + " AND ".join(filters)
+
+    # Group by subdomain details to get counts
+    query += " GROUP BY sd.subdomain, sd.domain, sd.source, sd.scope, sd.resolved, sd.ip_address, sd.cdn_status, sd.cdn_name, sd.created_at, sd.updated_at, sd.program"
 
     # Execute the query
     cursor.execute(query, parameters)
@@ -733,12 +787,14 @@ def list_subdomains(subdomain='*', domain='*', program='*', sources=None, scope=
                         "ip_address": sub[5], 
                         "cdn_status": sub[6], 
                         "cdn_name": sub[7],
+                        "urls": sub[11],
                         "created_at": sub[8], 
                         "updated_at": sub[9]
                     }
                     for sub in filtered_subdomains
                 ]
                 print(json.dumps(result, indent=4))
+
 
 def delete_subdomain(sub='*', domain='*', program='*', scope=None, source=None, resolved=None, ip_address=None, cdn_status=None, cdn_name=None):
     # Custom timestamp format
