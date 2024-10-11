@@ -787,7 +787,7 @@ def list_subdomains(subdomain='*', domain='*', program='*', sources=None, scope=
                     {
                         "subdomain": sub[0], 
                         "domain": sub[1], 
-                        "program": sub[10],
+                        "program": sub[11],
                         "source": sub[2], 
                         "scope": sub[3], 
                         "urls": sub[4],
