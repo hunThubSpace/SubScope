@@ -1028,7 +1028,7 @@ def add_url(url, subdomain, domain, program, scheme=None, method=None, port=None
         # Insert new url
         cursor.execute(""" 
             INSERT INTO urls (url, subdomain, domain, program, scheme, method, port, path, flag, status_code, scope, content_length, ip_address, cdn_status, cdn_name, title, webserver, webtech, cname, location, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (url, subdomain, domain, program, 
              scheme if scheme is not None else "none", 
              method if method is not None else "none", 
