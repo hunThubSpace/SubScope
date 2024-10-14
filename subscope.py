@@ -85,7 +85,7 @@ def list_programs(program='*', brief=False, count=False):
         if program == '*':
             cursor.execute("SELECT program, domains, subdomains, urls, ips, created_at FROM programs")
         else:
-            cursor.execute("SELECT program, domains, subdomains, urls, ips, created_at FROM programs WHERE program = ?", (program,))
+            cursor.execute("SELECT program, domains, subdomains, urls, ips, created_at FROM programs WHERE program LIKE ?", (f"%{program}%",))
         
         programs = cursor.fetchall()
 
@@ -107,7 +107,8 @@ def list_programs(program='*', brief=False, count=False):
         else:
             # Detailed mode: print program with created_at, domain count, subdomain count, URL count, and IP count as JSON
             program_list = [{'program': ws[0], 'domains': ws[1], 
-                             'subdomains': ws[2], 'urls': ws[3], 'ips': ws[4], 'created_at': ws[5]} for ws in programs]
+                             'subdomains': ws[2], 'urls': ws[3], 
+                             'ips': ws[4], 'created_at': ws[5]} for ws in programs]
             print(json.dumps({"programs": program_list}, indent=4))
 
     except sqlite3.DatabaseError as e:
@@ -259,34 +260,36 @@ def list_domains(domain='*', program='*', brief=False, count=False, scope=None):
             print(f"{timestamp} | {Fore.RED}error{Style.RESET_ALL} | listing domain | program {Fore.BLUE}{Style.BRIGHT}{program}{Style.RESET_ALL} does not exist")
             return
         
-        query = "SELECT domain, program, scope, subdomains, urls, created_at, updated_at FROM domains WHERE program = ?"
+        query = "SELECT domain, program, scope, subdomains, urls, created_at, updated_at FROM domains WHERE program LIKE ?"
         
-        params = [program]
+        params = [f"%{program}%"]
 
         if domain != '*':
-            query += " AND domain = ?"
-            params.append(domain)
+            query += " AND domain LIKE ?"
+            params.append(f"%{domain}%")
 
         if scope:
-            query += " AND scope = ?"
-            params.append(scope)
+            query += " AND scope LIKE ?"
+            params.append(f"%{scope}%")
 
         query += " GROUP BY domain, program, scope, created_at, updated_at"
         cursor.execute(query, params)
+
     else:
         query = "SELECT domain, program, scope, subdomains, urls, created_at, updated_at FROM domains"
+        
         params = []
 
         if domain != '*':
-            query += " WHERE domain = ?"
-            params.append(domain)
+            query += " WHERE domain LIKE ?"
+            params.append(f"%{domain}%")
 
         if scope:
             if 'WHERE' in query:
-                query += " AND scope = ?"
+                query += " AND scope LIKE ?"
             else:
-                query += " WHERE scope = ?"
-            params.append(scope)
+                query += " WHERE scope LIKE ?"
+            params.append(f"%{scope}%")
 
         query += " GROUP BY domain, program, scope, created_at, updated_at"
         cursor.execute(query, params)
@@ -528,42 +531,43 @@ def list_subdomains(subdomain='*', domain='*', program='*', sources=None, scope=
 
     # Add filtering for program if not '*'
     if program != '*':
-        filters.append("program = ?")
-        parameters.append(program)
+        filters.append("program LIKE ?")
+        parameters.append(f"%{program}%")
 
-    # Handle wildcard for domain and subdomain
+    # Handle wildcard for domain
     if domain != '*':
-        filters.append("domain = ?")
-        parameters.append(domain)
+        filters.append("domain LIKE ?")
+        parameters.append(f"%{domain}%")
 
+    # Handle wildcard for subdomain
     if subdomain != '*':
-        filters.append("subdomain = ?")
-        parameters.append(subdomain)
+        filters.append("subdomain LIKE ?")
+        parameters.append(f"%{subdomain}%")
 
     # Add filtering for scope
     if scope:
-        filters.append("scope = ?")
-        parameters.append(scope)
+        filters.append("scope LIKE ?")
+        parameters.append(f"%{scope}%")
 
     # Add filtering for resolved status
     if resolved:
-        filters.append("resolved = ?")
-        parameters.append(resolved)
+        filters.append("resolved LIKE ?")
+        parameters.append(f"%{resolved}%")
 
     # Add filtering for cdn_status
     if cdn_status:
-        filters.append("cdn_status = ?")
-        parameters.append(cdn_status)
+        filters.append("cdn_status LIKE ?")
+        parameters.append(f"%{cdn_status}%")
 
     # Add filtering for ip_address
     if ip:
-        filters.append("ip_address = ?")
-        parameters.append(ip)
+        filters.append("ip_address LIKE ?")
+        parameters.append(f"%{ip}%")
 
     # Add filtering for cdn_name
     if cdn_name:
-        filters.append("cdn_name = ?")
-        parameters.append(cdn_name)
+        filters.append("cdn_name LIKE ?")
+        parameters.append(f"%{cdn_name}%")
 
     # Parse create_time and update_time and add time range filters
     if create_time:
@@ -1078,56 +1082,56 @@ def list_urls(url='*', subdomain='*', domain='*', program='*', scheme=None, meth
     # Building the WHERE clause
     where_clauses = []
     if program != '*':
-        where_clauses.append("program = ?")
-        parameters.append(program)
+        where_clauses.append("program LIKE ?")
+        parameters.append(f"%{program}%")
     if url != '*':
-        where_clauses.append("url = ?")
-        parameters.append(url)
+        where_clauses.append("url LIKE ?")
+        parameters.append(f"%{url}%")
     if subdomain != '*':
-        where_clauses.append("subdomain = ?")
-        parameters.append(subdomain)
+        where_clauses.append("subdomain LIKE ?")
+        parameters.append(f"%{subdomain}%")
     if domain != '*':
-        where_clauses.append("domain = ?")
-        parameters.append(domain)
+        where_clauses.append("domain LIKE ?")
+        parameters.append(f"%{domain}%")
     if scope:
-        where_clauses.append("scope = ?")
-        parameters.append(scope)
+        where_clauses.append("scope LIKE ?")
+        parameters.append(f"%{scope}%")
     if scheme:
         where_clauses.append("scheme = ?")
         parameters.append(scheme)
     if method:
-        where_clauses.append("method = ?")
-        parameters.append(method)
+        where_clauses.append("method LIKE ?")
+        parameters.append(f"%{method}%")
     if port:
         where_clauses.append("port = ?")
         parameters.append(port)
     if status_code:
-        where_clauses.append("status_code = ?")
-        parameters.append(status_code)
+        where_clauses.append("status_code LIKE ?")
+        parameters.append(f"%{status_code}%")
     if ip:
-        where_clauses.append("ip_address = ?")
-        parameters.append(ip)
+        where_clauses.append("ip_address LIKE ?")
+        parameters.append(f"%{ip}%")
     if cdn_status:
-        where_clauses.append("cdn_status = ?")
-        parameters.append(cdn_status)
+        where_clauses.append("cdn_status LIKE ?")
+        parameters.append(f"%{cdn_status}%")
     if cdn_name:
-        where_clauses.append("cdn_name = ?")
-        parameters.append(cdn_name)
+        where_clauses.append("cdn_name LIKE ?")
+        parameters.append(f"%{cdn_name}%")
     if title:
-        where_clauses.append("title = ?")
-        parameters.append(title)
+        where_clauses.append("title LIKE ?")
+        parameters.append(f"%{title}%")
     if webserver:
-        where_clauses.append("webserver = ?")
-        parameters.append(webserver)
+        where_clauses.append("webserver LIKE ?")
+        parameters.append(f"%{webserver}%")
     if webtech:
         where_clauses.append("webtech LIKE ?")
         parameters.append(f"%{webtech}%")
     if cname:
-        where_clauses.append("cname = ?")
-        parameters.append(cname)
+        where_clauses.append("cname LIKE ?")
+        parameters.append(f"%{cname}%")
     if location:
-        where_clauses.append("location = ?")
-        parameters.append(location)
+        where_clauses.append("location LIKE ?")
+        parameters.append(f"%{location}%")
     if flag:
         where_clauses.append("flag = ?")
         parameters.append(flag)
@@ -1740,14 +1744,14 @@ def list_ip(ip='*', program='*', cidr=None, asn=None, port=None, service=None,
     # Building the WHERE clause
     where_clauses = []
     if program != '*':
-        where_clauses.append("program = ?")
-        parameters.append(program)
+        where_clauses.append("program LIKE ?")
+        parameters.append(f"%{program}%")
     if ip != '*':
-        where_clauses.append("ip = ?")
-        parameters.append(ip)
+        where_clauses.append("ip LIKE ?")
+        parameters.append(f"%{ip}%")
     if cidr:
-        where_clauses.append("cidr = ?")
-        parameters.append(cidr)
+        where_clauses.append("cidr LIKE ?")
+        parameters.append(f"%{cidr}%")
     if asn:
         where_clauses.append("asn = ?")
         parameters.append(asn)
@@ -1762,7 +1766,7 @@ def list_ip(ip='*', program='*', cidr=None, asn=None, port=None, service=None,
             parameters.append(port)
             parameters.append(f'%{port}%')
     if service:
-        where_clauses.append("service = ?")
+        where_clauses.append("service LIKE ?")
         parameters.append(service)
     if cves:
         where_clauses.append("cves LIKE ?")
