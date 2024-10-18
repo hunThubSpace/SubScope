@@ -53,7 +53,7 @@ If you want to use above commands, use `-h` or `--help` for help
 | Management | Link | Management | Link | Management | Link |
 | ---------- | ---- | ---------- | ---- | ---------- | ---- |
 | Program    | [Click Here](https://medium.com/@hunthubspace/streamlining-your-bug-bounty-projects-adding-and-managing-programs-via-subscope-e394acfdf711) | Subdomain | [Click Here](https://medium.com/@hunthubspace/a-deep-dive-into-subdomain-management-using-subscope-43f8653b4593) | IP Address | [Click Here]()
-| Domain     | [Click Here](https://medium.com/@hunthubspace/effective-domain-management-for-bug-bounty-programs-using-subscope-f74b7a0db428) |  URL | [Click Here]()
+| Domain     | [Click Here](https://medium.com/@hunthubspace/effective-domain-management-for-bug-bounty-programs-using-subscope-f74b7a0db428) |  URL | [Click Here](https://medium.com/@hunthubspace/managing-and-modifying-urls-in-subscope-for-bug-bounty-programs-a-comprehensive-guide-667df5ed07ab)
 
 
 
